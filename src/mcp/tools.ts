@@ -14,6 +14,14 @@ import {
 import { polygres, searchCompanyContext, jointSearchOpportunity, logCallTranscriptAtomically } from '../lib/polygres';
 import { eq, ilike, and, inArray } from 'drizzle-orm';
 import { logTimelineActivity, getTimelineActivities, formatTimelineActivity } from '../lib/timeline';
+import {
+  createView,
+  listViews,
+  runView,
+  deleteView,
+  FilterCondition,
+  SortCondition,
+} from '../lib/views';
 
 /**
  * Tool Schemas for Model Context Protocol
@@ -223,6 +231,67 @@ export const crmToolSchemas = {
       actorName: z.string().optional().describe("Display name of the actor, e.g. 'Outbound Agent', 'Clerk'"),
       actorUserId: z.string().optional().describe('Optional Clerk user ID if performed on behalf of a specific user'),
       properties: z.record(z.unknown()).default({}).optional().describe('Arbitrary structured metadata about the event'),
+    }),
+  },
+
+  // 20. Create Saved View
+  createView: {
+    description: 'Create a reusable saved view (Table, Kanban, or Calendar) with custom filters, sorting, and grouping for any entity.',
+    parameters: z.object({
+      targetEntity: z.string().describe("Target entity: 'companies', 'opportunities', 'people', or custom object name"),
+      name: z.string().describe("Human-friendly name, e.g. 'Enterprise Pipeline', 'Stale Deals'"),
+      viewType: z.enum(['TABLE', 'KANBAN', 'CALENDAR']).default('TABLE').optional(),
+      filters: z.array(z.object({
+        field: z.string().describe("Field name to filter on, e.g. 'stage', 'industry', or a custom field name"),
+        operator: z.enum(['eq', 'neq', 'contains', 'gt', 'gte', 'lt', 'lte', 'in', 'is_null', 'is_not_null']),
+        value: z.unknown().optional(),
+      })).default([]).optional(),
+      sortBy: z.array(z.object({
+        field: z.string(),
+        direction: z.enum(['asc', 'desc']),
+      })).default([]).optional(),
+      groupByField: z.string().optional().describe("Field used to group Kanban columns (e.g. 'stage') or Calendar dates (e.g. 'closeDate')"),
+      visibleFields: z.array(z.string()).default([]).optional().describe('Columns to show in the view'),
+      isShared: z.boolean().default(false).optional().describe('Whether this view is shared across the entire organization'),
+    }),
+  },
+
+  // 21. List Saved Views
+  listViews: {
+    description: 'List saved views and segment configurations, optionally filtered by target entity.',
+    parameters: z.object({
+      targetEntity: z.string().optional().describe("Filter views for one entity, e.g. 'opportunities', 'companies'"),
+      organizationId: z.string().optional(),
+      ownerId: z.string().optional(),
+    }),
+  },
+
+  // 22. Run Saved View
+  runView: {
+    description: 'Execute a saved view by ID (or an ad-hoc view specification) and return filtered, sorted, and grouped records.',
+    parameters: z.object({
+      viewId: z.string().uuid().optional().describe('The UUID of an existing saved view to run'),
+      targetEntity: z.string().optional().describe("For ad-hoc execution: 'companies', 'opportunities', 'people', or custom object name"),
+      filters: z.array(z.object({
+        field: z.string(),
+        operator: z.enum(['eq', 'neq', 'contains', 'gt', 'gte', 'lt', 'lte', 'in', 'is_null', 'is_not_null']),
+        value: z.unknown().optional(),
+      })).optional(),
+      sortBy: z.array(z.object({
+        field: z.string(),
+        direction: z.enum(['asc', 'desc']),
+      })).optional(),
+      groupByField: z.string().optional(),
+      limit: z.number().min(1).max(250).default(50).optional(),
+      offset: z.number().min(0).default(0).optional(),
+    }),
+  },
+
+  // 23. Delete Saved View
+  deleteView: {
+    description: 'Delete an existing saved view by its UUID.',
+    parameters: z.object({
+      viewId: z.string().uuid().describe('The UUID of the view to delete'),
     }),
   },
 };
@@ -697,5 +766,59 @@ export const crmToolHandlers = {
       activity,
       summary: activity ? formatTimelineActivity(activity) : null,
     };
+  },
+
+  async createView(input: {
+    targetEntity: string;
+    name: string;
+    viewType?: 'TABLE' | 'KANBAN' | 'CALENDAR';
+    filters?: FilterCondition[];
+    sortBy?: SortCondition[];
+    groupByField?: string;
+    visibleFields?: string[];
+    isShared?: boolean;
+  }) {
+    const view = await createView(input);
+    return { success: true, view };
+  },
+
+  async listViews(input: { targetEntity?: string; organizationId?: string; ownerId?: string }) {
+    const viewsList = await listViews(input);
+    return { count: viewsList.length, views: viewsList };
+  },
+
+  async runView(input: {
+    viewId?: string;
+    targetEntity?: string;
+    filters?: FilterCondition[];
+    sortBy?: SortCondition[];
+    groupByField?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    if (input.viewId) {
+      const result = await runView({ viewId: input.viewId, limit: input.limit, offset: input.offset });
+      return result;
+    }
+    if (!input.targetEntity) {
+      throw new Error('Either viewId or targetEntity must be provided to runView');
+    }
+    const result = await runView({
+      view: {
+        targetEntity: input.targetEntity,
+        filters: input.filters,
+        sortBy: input.sortBy,
+        groupByField: input.groupByField,
+        viewType: input.groupByField ? 'KANBAN' : 'TABLE',
+      },
+      limit: input.limit,
+      offset: input.offset,
+    });
+    return result;
+  },
+
+  async deleteView({ viewId }: { viewId: string }) {
+    const deleted = await deleteView(viewId);
+    return { success: true, deletedView: deleted };
   },
 };
