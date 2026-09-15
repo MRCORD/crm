@@ -631,6 +631,28 @@ export function createCrmMcpServer() {
     }
   );
 
+  server.tool(
+    'crm_import_csv',
+    crmToolSchemas.importCSV.description,
+    crmToolSchemas.importCSV.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_import_csv', args, args.entityType, undefined, () =>
+        crmToolHandlers.importCSV(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_export_csv',
+    crmToolSchemas.exportCSV.description,
+    crmToolSchemas.exportCSV.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_export_csv', args, args.entityType, args.viewId, () =>
+        crmToolHandlers.exportCSV(args)
+      );
+    }
+  );
+
   // ============================================================================
   // REGISTER MCP RESOURCES
   // ============================================================================
