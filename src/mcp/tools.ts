@@ -49,6 +49,15 @@ import {
   deleteAssignmentRule,
   AssignmentStrategy,
 } from '../lib/routing';
+import {
+  createProduct,
+  listProducts,
+  addOpportunityLineItem,
+  removeOpportunityLineItem,
+  generateQuote,
+  updateQuoteStatus,
+  getOpportunityQuotes,
+} from '../lib/cpq';
 
 /**
  * Tool Schemas for Model Context Protocol
@@ -492,6 +501,65 @@ export const crmToolSchemas = {
     description: 'Delete an assignment rule by ID.',
     parameters: z.object({
       ruleId: z.string().uuid().describe('UUID of the rule to delete'),
+    }),
+  },
+
+  // 41. Create Catalog Product
+  createProduct: {
+    description: 'Add a new product or subscription to the product catalog with SKU and standard pricing.',
+    parameters: z.object({
+      name: z.string().describe("Product name, e.g. 'Enterprise Platform License'"),
+      sku: z.string().optional().describe('Unique stock keeping unit, e.g. ENT-001'),
+      description: z.string().optional(),
+      defaultPriceMicros: z.number().min(0).describe('Default price in USD micros ($1 = 1,000,000)'),
+      currency: z.string().default('USD').optional(),
+    }),
+  },
+
+  // 42. List Catalog Products
+  listProducts: {
+    description: 'Search and list products in the catalog.',
+    parameters: z.object({
+      query: z.string().optional().describe('Search term matching product name'),
+      isActive: z.boolean().default(true).optional(),
+    }),
+  },
+
+  // 43. Add Line Item to Opportunity
+  addOpportunityLineItem: {
+    description: 'Attach a product line item with quantity and discount to an opportunity. Automatically recalculates and updates the opportunity total amount.',
+    parameters: z.object({
+      opportunityId: z.string().uuid().describe('The UUID of the opportunity'),
+      productId: z.string().uuid().describe('The UUID of the product from the catalog'),
+      quantity: z.number().int().min(1).default(1).optional(),
+      unitPriceMicros: z.number().min(0).optional().describe('Override unit price in micros; defaults to product catalog price'),
+      discountPercent: z.number().min(0).max(100).default(0).optional().describe('Discount percentage (0-100)'),
+    }),
+  },
+
+  // 44. Remove Opportunity Line Item
+  removeOpportunityLineItem: {
+    description: 'Remove a line item from an opportunity and recalculate total amount.',
+    parameters: z.object({
+      lineItemId: z.string().uuid().describe('UUID of the line item to remove'),
+    }),
+  },
+
+  // 45. Generate Formal Quote
+  generateQuote: {
+    description: 'Generate a formal Quote from an opportunity and its configured line items with a unique quote number and expiration date.',
+    parameters: z.object({
+      opportunityId: z.string().uuid().describe('The UUID of the opportunity to quote'),
+      expiresInDays: z.number().int().min(1).default(30).optional().describe('Days until quote expiration (default 30)'),
+      notes: z.string().optional().describe('Special terms or notes on the quote'),
+    }),
+  },
+
+  // 46. Get Opportunity Quotes & Line Items
+  getOpportunityQuotes: {
+    description: 'Retrieve configured line items and all generated quotes for an opportunity.',
+    parameters: z.object({
+      opportunityId: z.string().uuid().describe('The UUID of the opportunity'),
     }),
   },
 };
@@ -1194,5 +1262,51 @@ export const crmToolHandlers = {
   async deleteAssignmentRule({ ruleId }: { ruleId: string }) {
     const deleted = await deleteAssignmentRule(ruleId);
     return { success: true, deletedRule: deleted };
+  },
+
+  async createProduct(input: {
+    name: string;
+    sku?: string;
+    description?: string;
+    defaultPriceMicros: number;
+    currency?: string;
+  }) {
+    const product = await createProduct(input);
+    return { success: true, product };
+  },
+
+  async listProducts(options?: { query?: string; isActive?: boolean }) {
+    const prods = await listProducts(options);
+    return { count: prods.length, products: prods };
+  },
+
+  async addOpportunityLineItem(input: {
+    opportunityId: string;
+    productId: string;
+    quantity?: number;
+    unitPriceMicros?: number;
+    discountPercent?: number;
+  }) {
+    const result = await addOpportunityLineItem(input);
+    return { success: true, ...result };
+  },
+
+  async removeOpportunityLineItem({ lineItemId }: { lineItemId: string }) {
+    const result = await removeOpportunityLineItem(lineItemId);
+    return result;
+  },
+
+  async generateQuote(input: {
+    opportunityId: string;
+    expiresInDays?: number;
+    notes?: string;
+  }) {
+    const result = await generateQuote(input);
+    return { success: true, ...result };
+  },
+
+  async getOpportunityQuotes({ opportunityId }: { opportunityId: string }) {
+    const result = await getOpportunityQuotes(opportunityId);
+    return result;
   },
 };

@@ -510,6 +510,72 @@ export function createCrmMcpServer() {
     }
   );
 
+  server.tool(
+    'crm_create_product',
+    crmToolSchemas.createProduct.description,
+    crmToolSchemas.createProduct.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_create_product', args, undefined, undefined, () =>
+        crmToolHandlers.createProduct(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_list_products',
+    crmToolSchemas.listProducts.description,
+    crmToolSchemas.listProducts.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_list_products', args, undefined, undefined, () =>
+        crmToolHandlers.listProducts(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_add_line_item',
+    crmToolSchemas.addOpportunityLineItem.description,
+    crmToolSchemas.addOpportunityLineItem.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_add_line_item', args, 'opportunity', args.opportunityId, () =>
+        crmToolHandlers.addOpportunityLineItem(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_remove_line_item',
+    crmToolSchemas.removeOpportunityLineItem.description,
+    crmToolSchemas.removeOpportunityLineItem.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_remove_line_item', args, 'line_item', args.lineItemId, () =>
+        crmToolHandlers.removeOpportunityLineItem(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_generate_quote',
+    crmToolSchemas.generateQuote.description,
+    crmToolSchemas.generateQuote.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_generate_quote', args, 'opportunity', args.opportunityId, () =>
+        crmToolHandlers.generateQuote(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_get_opportunity_quotes',
+    crmToolSchemas.getOpportunityQuotes.description,
+    crmToolSchemas.getOpportunityQuotes.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_get_opportunity_quotes', args, 'opportunity', args.opportunityId, () =>
+        crmToolHandlers.getOpportunityQuotes(args)
+      );
+    }
+  );
+
   // ============================================================================
   // REGISTER MCP RESOURCES
   // ============================================================================

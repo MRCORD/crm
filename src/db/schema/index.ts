@@ -22,6 +22,9 @@ import {
   sequenceSteps,
   sequenceEnrollments,
   assignmentRules,
+  products,
+  opportunityLineItems,
+  quotes,
 } from './crm';
 import { mcpClients, mcpToolCallReceipts, mcpApprovals } from './mcp';
 import { interactionTranscripts, knowledgeDocuments } from './retrieval';
@@ -61,6 +64,8 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   views: many(views),
   sequences: many(sequences),
   assignmentRules: many(assignmentRules),
+  products: many(products),
+  quotes: many(quotes),
 }));
 
 export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
@@ -132,6 +137,8 @@ export const opportunitiesRelations = relations(opportunities, ({ one, many }) =
   }),
   noteTargets: many(noteTargets),
   transcripts: many(interactionTranscripts),
+  lineItems: many(opportunityLineItems),
+  quotes: many(quotes),
 }));
 
 export const tagsRelations = relations(tags, ({ one, many }) => ({
@@ -281,6 +288,36 @@ export const sequenceEnrollmentsRelations = relations(sequenceEnrollments, ({ on
 export const assignmentRulesRelations = relations(assignmentRules, ({ one }) => ({
   organization: one(organizations, {
     fields: [assignmentRules.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export const productsRelations = relations(products, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [products.organizationId],
+    references: [organizations.id],
+  }),
+  lineItems: many(opportunityLineItems),
+}));
+
+export const opportunityLineItemsRelations = relations(opportunityLineItems, ({ one }) => ({
+  opportunity: one(opportunities, {
+    fields: [opportunityLineItems.opportunityId],
+    references: [opportunities.id],
+  }),
+  product: one(products, {
+    fields: [opportunityLineItems.productId],
+    references: [products.id],
+  }),
+}));
+
+export const quotesRelations = relations(quotes, ({ one }) => ({
+  opportunity: one(opportunities, {
+    fields: [quotes.opportunityId],
+    references: [opportunities.id],
+  }),
+  organization: one(organizations, {
+    fields: [quotes.organizationId],
     references: [organizations.id],
   }),
 }));
