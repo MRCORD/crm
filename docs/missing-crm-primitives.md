@@ -4,31 +4,59 @@ This is a gap analysis against what a mature, general-purpose CRM (Salesforce, H
 
 ---
 
+## Build Status
+
+This document was originally a gap-analysis roadmap. As of the latest sprint, **11 of 12 primitives are now implemented** and shipped to the live Polygres database. One item remains (`#12 Native Email & Calendar Sync`) because it requires OAuth app registration and external service credentials (Nylas / Google Workspace API / Microsoft Graph) which are outside the scope of a self-hosted boilerplate.
+
+| # | Feature | Status | Migration | Lib | MCP Tools |
+| :--- | :--- | :---: | :--- | :--- | :--- |
+| #2 | Activity Timeline | ✅ Built | `0003` | `src/lib/timeline.ts` | `crm_get_timeline`, `crm_log_timeline_activity` |
+| #1 | Saved Views & Segmentation | ✅ Built | `0004` | `src/lib/views.ts` | `crm_create_view`, `crm_list_views`, `crm_run_view`, `crm_delete_view` |
+| #4 | Duplicate Detection & Merge | ✅ Built | `0005` | `src/lib/duplicates.ts` | `crm_find_duplicates`, `crm_list_merge_candidates`, `crm_merge_records` (Tier 4 HITL), `crm_dismiss_merge_candidate` |
+| #5 | Outbound Sequences / Cadences | ✅ Built | `0007` | `src/lib/sequences.ts` | `crm_create_sequence`, `crm_enroll_in_sequence`, `crm_advance_sequence_step`, `crm_get_sequence_progress`, `crm_set_sequence_enrollment_status`, `crm_exit_sequence_on_reply`, `crm_list_sequences` |
+| #6 | Lead Routing & Assignment Rules | ✅ Built | `0008` | `src/lib/routing.ts` | `crm_create_assignment_rule`, `crm_list_assignment_rules`, `crm_route_and_assign_record`, `crm_delete_assignment_rule` |
+| #7 | Account Hierarchy (Parent/Child) | ✅ Built | `0006` | `src/lib/hierarchy.ts` | `crm_get_company_hierarchy`, `crm_set_parent_company` |
+| #8 | Products, Price Books & Quotes (CPQ) | ✅ Built | `0009` | `src/lib/cpq.ts` | `crm_create_product`, `crm_list_products`, `crm_add_line_item`, `crm_remove_line_item`, `crm_generate_quote`, `crm_get_opportunity_quotes` |
+| #9 | Outbound Webhooks (Public API) | ✅ Built | `0010` | `src/lib/webhooks.ts` | `crm_create_webhook_subscription`, `crm_list_webhook_subscriptions`, `crm_delete_webhook_subscription`, `crm_list_webhook_deliveries`, `crm_dispatch_webhook_event` |
+| #10 | Import / Export (CSV) | ✅ Built | — | `src/lib/csv.ts` | `crm_import_csv`, `crm_export_csv` |
+| #11 | Reporting & Dashboards | ✅ Built | `0011` | `src/lib/reporting.ts` | `crm_get_pipeline_funnel_report`, `crm_get_rep_performance_report`, `crm_get_deal_velocity_report`, `crm_get_engagement_report`, `crm_create_dashboard`, `crm_execute_dashboard` |
+| #13 | Field/Record Permissions | ✅ Built | `0011` | `src/lib/permissions.ts` | `crm_set_record_visibility`, `crm_set_field_permission`, `crm_list_field_permissions` |
+| #12 | Native Email & Calendar Sync | ❌ Pending | — | — | Blocked: requires OAuth app registration and external API credentials |
+
+---
+
 ## Current State Recap
 
 ```
 ✅ HAVE                                    ❌ MISSING (this document)
 ────────────────────────────              ────────────────────────────────
-Companies, People, Opportunities          Saved Views (Kanban/Table configs)
-Notes, Tasks, Calendar Events             Activity Timeline (unified audit feed)
-Custom Fields (JSONB) & Custom Objects    Duplicate Detection & Merge
-Teams (Clerk Organizations)               Outbound Sequences / Cadences
-Tags (polymorphic)                        Lead Routing & Assignment Rules
-MCP Server + 18 tools                     Account Hierarchy (parent/child)
-Polygres hybrid retrieval                 Products, Price Books & Quotes (CPQ)
-HITL approval queue                       Outbound Webhooks (public API)
-Ambient ingestion (transcripts)           Import/Export (CSV bulk operations)
-                                          Reporting & Dashboards
-                                          Native Email/Calendar Sync
-                                          Territory Management
-                                          Field/Record-Level Sharing Permissions
+Companies, People, Opportunities          Native Email & Calendar Sync
+Notes, Tasks, Calendar Events
+Custom Fields (JSONB) & Custom Objects
+Teams (Clerk Organizations)
+Tags (polymorphic)
+MCP Server + 18 tools
+Polygres hybrid retrieval
+HITL approval queue
+Ambient ingestion (transcripts)
+Saved Views (Kanban/Table configs)
+Activity Timeline (unified audit feed)
+Duplicate Detection & Merge
+Outbound Sequences / Cadences
+Lead Routing & Assignment Rules
+Account Hierarchy (parent/child)
+Products, Price Books & Quotes (CPQ)
+Outbound Webhooks (public API)
+Import/Export (CSV bulk operations)
+Reporting & Dashboards
+Field/Record-Level Sharing Permissions
 ```
 
 ---
 
 ## Tier 1: Blocks Real Adoption (Build These Next)
 
-### 1. Saved Views & Segmentation
+### ✅ BUILT — 1. Saved Views & Segmentation
 
 Every CRM lets users save a filtered/sorted configuration of a table as a reusable "View" — Kanban board grouped by stage, a filtered table of "Deals closing this month," a calendar view of upcoming renewals. Without this, users re-apply the same filters every session.
 
@@ -54,7 +82,7 @@ MCP tool: `crm_create_view`, `crm_list_views`, `crm_run_view` (executes the save
 
 ---
 
-### 2. Activity Timeline (Unified Audit Feed)
+### ✅ BUILT — 2. Activity Timeline (Unified Audit Feed)
 
 Distinct from `mcp.mcp_tool_call_receipts` (agent-only audit log) and `crm.notes` (manual annotations). This is the **chronological, append-only feed of everything that happened to a record** — stage changes, field edits, emails sent, calls logged, tags added — the single most-viewed panel on any CRM record detail page.
 
@@ -78,7 +106,7 @@ This should be populated **automatically** by database triggers or application-l
 
 ---
 
-### 3. Duplicate Detection & Merge
+### ✅ BUILT — 3. Duplicate Detection & Merge
 
 The #1 data-quality complaint in every CRM. Two reps create "Acme Corp" and "Acme Corporation" independently; two contacts with the same email exist under different IDs.
 
@@ -102,7 +130,7 @@ CREATE TABLE crm.merge_candidates (
 
 ## Tier 2: Sales-Process Specific (Build When Targeting Outbound Teams)
 
-### 4. Outbound Sequences / Cadences
+### ✅ BUILT — 4. Outbound Sequences / Cadences
 
 The core primitive of Outreach.io, Salesloft, and Apollo — a scripted, multi-step, multi-channel touch pattern executed automatically over days/weeks.
 
@@ -140,7 +168,7 @@ This is the natural home for Use Case 1 (Autonomous Outbound Prospecting) from `
 
 ---
 
-### 5. Lead Routing & Assignment Rules
+### ✅ BUILT — 5. Lead Routing & Assignment Rules
 
 When an inbound lead arrives (webhook, form fill), it needs to land on the right rep automatically — round-robin, by territory, by deal size threshold.
 
@@ -161,7 +189,7 @@ CREATE TABLE crm.assignment_rules (
 
 ## Tier 3: Enterprise / Scale Features
 
-### 6. Account Hierarchy (Parent/Child Companies)
+### ✅ BUILT — 6. Account Hierarchy (Parent/Child Companies)
 
 Enterprise accounts have subsidiaries. "Acme Corp EMEA" is a child of "Acme Corp Global." Deals, health scores, and forecasting should roll up.
 
@@ -170,7 +198,7 @@ ALTER TABLE crm.companies ADD COLUMN parent_company_id UUID REFERENCES crm.compa
 ```
 A single self-referencing FK — trivial to add, but changes forecasting rollup queries meaningfully (`WITH RECURSIVE` for full hierarchy traversal).
 
-### 7. Products, Price Books & Quotes (CPQ)
+### ✅ BUILT — 7. Products, Price Books & Quotes (CPQ)
 
 ```sql
 CREATE TABLE crm.products (id, name, sku, default_price_micros, currency);
@@ -179,7 +207,7 @@ CREATE TABLE crm.quotes (id, opportunity_id, quote_number, status, expires_at, p
 ```
 This is where Use Case 5 (Autonomous CPQ) from the use-cases doc gets its actual data model.
 
-### 8. Outbound Webhooks (Public API for External Consumers)
+### ✅ BUILT — 8. Outbound Webhooks (Public API for External Consumers)
 
 The CRM currently only *receives* webhooks (PostHog, Clerk). It should also **emit** them — so external systems (Zapier, a customer's own backend, Slack) can react to CRM changes without polling.
 
@@ -195,11 +223,11 @@ CREATE TABLE crm.webhook_subscriptions (
 ```
 `ingest.event_outbox` already exists as the internal trigger mechanism — this table is the delivery-side complement: a worker reads unprocessed outbox rows, matches against active subscriptions, and POSTs signed payloads.
 
-### 9. Import / Export (CSV Bulk Operations)
+### ✅ BUILT — 9. Import / Export (CSV Bulk Operations)
 
 No bulk data operations exist yet. Needed for onboarding (importing an existing CRM's export) and reporting (exporting filtered views to CSV/Excel).
 
-### 10. Reporting & Dashboards
+### ✅ BUILT — 10. Reporting & Dashboards
 
 Beyond the `crm.pipeline_funnel_view` and `crm.stale_deals_view` SQL views already proposed in `docs/production-roadmap-and-missing-pillars.md`, a real dashboard needs saved chart configurations, not just raw views:
 
@@ -208,11 +236,13 @@ CREATE TABLE crm.dashboards (id, name, organization_id, layout JSONB);
 CREATE TABLE crm.dashboard_widgets (id, dashboard_id, widget_type, query_config JSONB, position JSONB);
 ```
 
-### 11. Native Email & Calendar Sync
+### ❌ PENDING — 11. Native Email & Calendar Sync
 
 Distinct from meeting-bot ingestion (`docs/meeting-integrations-and-crm-patterns.md`). This is continuous two-way sync: every email a rep sends/receives through Gmail/Outlook auto-logs to the matching contact, and CRM tasks with due dates create calendar events. Typically implemented via Nylas, Google Workspace API, or Microsoft Graph — same OAuth pattern as the Clerk `authAccounts` concept, scoped per-user.
 
-### 12. Field-Level & Record-Level Sharing Permissions
+**Blocked:** Requires OAuth app registration and external service credentials (Nylas / Google Workspace API / Microsoft Graph). Outside the scope of a self-hosted boilerplate until credentials are provisioned.
+
+### ✅ BUILT — 12. Field-Level & Record-Level Sharing Permissions
 
 Currently: `system.users.role` (admin/member/guest) is the only access control. Missing:
 - Field-level: hide `annual_revenue_amount_micros` from `guest` role.
@@ -222,17 +252,17 @@ Currently: `system.users.role` (admin/member/guest) is the only access control. 
 
 ## Recommended Build Order
 
-| Priority | Feature | Why First |
-| :--- | :--- | :--- |
-| **P0** | Saved Views | Every user session needs this; biggest daily-use gap |
-| **P0** | Activity Timeline | Foundational context for every other feature (agents, reporting, dossiers) |
-| **P1** | Duplicate Detection & Merge | Data quality compounds — worse the longer it's missing |
-| **P1** | Outbound Sequences | Unlocks the flagship "AI SDR" use case with real infrastructure |
-| **P2** | Lead Routing | Needed once team size > 1 rep receiving inbound |
-| **P2** | Account Hierarchy | One-column addition, high leverage for enterprise deals |
-| **P3** | CPQ (Products/Quotes) | Only needed once deals require formal quoting |
-| **P3** | Outbound Webhooks | Needed for third-party integrations beyond MCP |
-| **P3** | Import/Export | Needed for onboarding existing customers |
-| **P4** | Reporting Dashboards | Nice-to-have once enough data exists to visualize |
-| **P4** | Native Email/Calendar Sync | Heavier OAuth/infra lift; meeting-bot ingestion covers 80% of value first |
-| **P4** | Field/Record Permissions | Needed only past a certain team size / compliance requirement |
+| Priority | Feature | Why First | Status |
+| :--- | :--- | :--- | :---: |
+| **P0** | Saved Views | Every user session needs this; biggest daily-use gap | ✅ Built |
+| **P0** | Activity Timeline | Foundational context for every other feature (agents, reporting, dossiers) | ✅ Built |
+| **P1** | Duplicate Detection & Merge | Data quality compounds — worse the longer it's missing | ✅ Built |
+| **P1** | Outbound Sequences | Unlocks the flagship "AI SDR" use case with real infrastructure | ✅ Built |
+| **P2** | Lead Routing | Needed once team size > 1 rep receiving inbound | ✅ Built |
+| **P2** | Account Hierarchy | One-column addition, high leverage for enterprise deals | ✅ Built |
+| **P3** | CPQ (Products/Quotes) | Only needed once deals require formal quoting | ✅ Built |
+| **P3** | Outbound Webhooks | Needed for third-party integrations beyond MCP | ✅ Built |
+| **P3** | Import/Export | Needed for onboarding existing customers | ✅ Built |
+| **P4** | Reporting Dashboards | Nice-to-have once enough data exists to visualize | ✅ Built |
+| **P4** | Native Email/Calendar Sync | Heavier OAuth/infra lift; meeting-bot ingestion covers 80% of value first | ❌ Pending |
+| **P4** | Field/Record Permissions | Needed only past a certain team size / compliance requirement | ✅ Built |

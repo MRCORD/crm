@@ -1,346 +1,283 @@
-# Master System Architecture: Next-Generation Agentic CRM
+# Master System Architecture: Agentic CRM on Polygres
 
-This document establishes the end-to-end system design and master technical blueprint for this CRM. It synthesizes:
-1. **Twenty CRM's Dynamic Relational Metadata Engine:** Dynamic schema-per-workspace PostgreSQL isolation, runtime metadata catalogs, composite column flattening, and typed junction associations.
-2. **SOTA Agentic Architecture:** 5-tier agent taxonomy, ambient data capture, "System 2" deliberative reasoning, Anthropic Model Context Protocol (MCP) tool execution, and risk-tiered Human-in-the-Loop (HITL) governance.
-3. **Polygres & pgContext Hybrid Retrieval (`polygres-sdk-ts`):** Relational knowledge graph traversal, entity-anchored `graphFirst` search, tri-lane `joint` search (Vector + Full-Text + Graph), and atomic context reconciliation.
+This is the technical blueprint for the CRM boilerplate. It documents what is implemented today: 41 database tables across 5 PostgreSQL schemas, 62 MCP tools, a hybrid Polygres retrieval layer, and a 4-tier Human-in-the-Loop safety gateway.
 
 ---
 
-## 1. System Topology & Architecture
+## 1. System Topology
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                   EXTERNAL AI CLIENTS & AGENTS                                  │
-│   • Claude Desktop / Claude Code            • Cursor / Windsurf IDE                              │
-│   • Custom Python Swarms (LangGraph, CrewAI)• Automation Workflows (n8n, Make, Zapier)           │
-└────────────────────────────────────────────────┬─────────────────────────────────────────────────┘
-                                                 │ JSON-RPC 2.0 via stdio or HTTP/SSE
-                                                 ▼
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                 CRM MCP SERVER & SAFETY GATEWAY                                  │
-│                                  (`@modelcontextprotocol/sdk`)                                   │
-│                                                                                                  │
-│  • MCP Tools: crm_search_companies, crm_get_company, crm_update_stage, log_meeting_transcript... │
-│  • MCP Resources: crm://pipeline/summary, crm://companies/{id}, crm://transcripts/{id}           │
-│  • MCP Prompts: pre_call_dossier, deal_risk_review                                               │
-│  • Safety & Governance:                                                                         │
-│    - Risk Tier Evaluator (Tier 1-4)                                                              │
-│    - Human-in-the-Loop (HITL) Interceptor: mcp.mcp_approvals                                     │
-│    - Immutable Audit Ledger: mcp.mcp_tool_call_receipts                                          │
-└───────────────────────┬──────────────────────────────────────────────────┬───────────────────────┘
-                        │                                                  │
-                        ▼                                                  ▼
-┌──────────────────────────────────────────────┐   ┌──────────────────────────────────────────────┐
-│       POLYGRESS HYBRID RETRIEVAL ENGINE      │   │           DRIZZLE ORM DATABASE LAYER         │
-│             (`polygres-sdk-ts`)              │   │            (5 Clean Logical Schemas)         │
-│                                              │   │                                              │
-│  • graphFirst: Entity-anchored search        │   │  • system: users, api_keys                   │
-│  • joint: Vector + Lexical + Graph co-rank   │   │  • crm: companies, people, opportunities...  │
-│  • groupedSearch: Balanced context coverage  │   │  • mcp: mcp_clients, receipts, approvals     │
-│  • recommend: Math ICP lookalike scoring     │   │  • retrieval: transcripts, knowledge docs    │
-│  • Atomic Context Reconciliation on writes   │   │  • ingest: source_connections, outbox        │
-└───────────────────────┬──────────────────────┘   └──────────────────────┬───────────────────────┘
-                        │                                                 │
-                        ▼                                                 ▼
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                      POSTGRESQL STORAGE ENGINE                                   │
-│                                                                                                  │
-│  • High-performance Relational Foreign Keys serving natively as Polygres Knowledge Graph Edges   │
-│  • Co-located pgContext HNSW Vector Indexes & tsvector Full-Text Generated Columns               │
-│  • Multi-schema Organization: system, crm, mcp, retrieval, ingest                               │
-└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        AI CLIENTS & AGENT SWARMS                            │
+│   Claude Desktop  ·  Cursor / Windsurf  ·  LangGraph / CrewAI  ·  n8n      │
+└───────────────────────────────────┬─────────────────────────────────────────┘
+                                    │  JSON-RPC 2.0 / stdio or HTTP-SSE
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        CRM MCP SERVER  (src/mcp/)                           │
+│                                                                             │
+│  62 Tools  ·  3 Resources  ·  2 Prompts  ·  Immutable Audit Trail          │
+│  Risk-Tiered HITL Gateway: Tier 1 (read) → Tier 4 (HITL-intercepted)       │
+└──────────────────┬───────────────────────────┬──────────────────────────────┘
+                   │                           │
+                   ▼                           ▼
+┌──────────────────────────┐   ┌──────────────────────────────────────────────┐
+│ POLYGRES HYBRID RETRIEVAL│   │          DRIZZLE ORM  (src/db/)               │
+│   (polygres-sdk-ts)      │   │                                              │
+│                          │   │  system   users, orgs, api_keys              │
+│  graphFirst              │   │  crm      41 tables (see §3)                 │
+│  joint (Vec+Lex+Graph)   │   │  mcp      clients, receipts, approvals       │
+│  recommend (lookalike)   │   │  retrieval transcripts, knowledge_docs       │
+│  rows.insert (atomic)    │   │  ingest   source_connections, outbox         │
+└──────────────────┬───────┘   └──────────────────────┬───────────────────────┘
+                   │                                   │
+                   └───────────────┬───────────────────┘
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         POSTGRESQL  (Polygres)                               │
+│   HNSW Vector Indexes  ·  tsvector FTS  ·  FK-native Knowledge Graph        │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## 2. The Three Architectural Pillars
 
-### Pillar 1: The Relational Foundation (Twenty CRM Pattern)
-* **Schema-per-Workspace:** Strict data isolation in PostgreSQL (`workspace_<base36(uuid)>`), preventing cross-tenant data leaks and allowing non-blocking DDL alterations.
-* **Declarative Metadata Engine:** All entities are defined in `core.objectMetadata` and `core.fieldMetadata`. New objects and fields alter the physical schema at runtime without server downtime.
-* **Physical Column Decomposition:** Complex domain types are flattened into discrete typed columns rather than opaque JSONB:
-  * `CURRENCY` $\rightarrow$ `amountMicros` (`numeric`) + `currencyCode` (`text`).
-  * `ADDRESS` $\rightarrow$ `street1`, `city`, `state`, `country`, `lat`, `lng`.
-  * `ACTOR` $\rightarrow$ `source`, `workspaceMemberId`, `name`, `context`.
-* **Polymorphic Junction Objects:** Cross-entity links use concrete typed junction tables (`noteTarget`, `taskTarget`) with foreign keys and `ON DELETE CASCADE`.
+### Pillar 1: Relational Foundation
+Single-tenant (not workspace-per-schema). Five logical schemas provide clean domain separation:
+- `system` — identity (Clerk-synced), organizations, API keys
+- `crm` — all CRM objects: standard entities, junction tables, and the full set of CRM primitives
+- `mcp` — agent execution layer: clients, audit receipts, approval queue
+- `retrieval` — interaction transcripts, knowledge documents (Polygres vectors live here)
+- `ingest` — telemetry events, transactional outbox, source connection registry
 
-### Pillar 2: The Agentic Execution Layer (SOTA Agentforce & Ambient Pattern)
-* **5-Tier Agent Taxonomy:**
-  1. *Conversational:* Interactive copilots.
-  2. *Proactive:* Event-driven database monitors reacting to CDC/Outbox events.
-  3. *Ambient:* Headless listeners capturing audio, video, calendar, and email streams.
-  4. *Autonomous:* Goal-oriented digital workers (e.g. AI SDR/BDR).
-  5. *Collaborative Swarms:* Orchestrator distributing tasks across specialized sub-agents.
-* **Deliberative "System 2" Reasoning:** Multi-pass planning loops evaluating intent, decomposing goals into DAGs, selecting MCP tools, and validating against business policies.
-* **Risk-Tiered Human-in-the-Loop (HITL):** High-risk actions (sending cold outreach, modifying contracts, deleting records) pause execution, serialize state, and await human approval.
+Complex domain types are flattened into discrete typed columns (Twenty CRM pattern):
+- `CURRENCY` → `amountMicros` (`numeric`) + `currency` (`text`)
+- `ADDRESS` → `addressStreet1`, `addressCity`, `addressState`, `addressCountry`, `addressLat`, `addressLng`
 
-### Pillar 3: Grounding & Retrieval (Polygres & pgContext Pattern)
-* **PostgreSQL-Native:** No external vector DB synchronization lag; vector indexes and graph edges reside natively in PostgreSQL.
-* **`graphFirst` Search:** Scopes semantic vector search strictly within a starting entity's graph neighborhood (e.g. Account $\rightarrow$ Contacts $\rightarrow$ Transcripts), eliminating cross-account semantic pollution.
-* **`joint` Tri-Lane Search:** Simultaneously co-ranks dense semantic vectors, exact lexical matches (`tsvector`), and graph proximity.
-* **Atomic Context Reconciliation:** Ensures row writes (`rows.insert({ reconcileContext: true, waitForContext: true })`) are immediately indexed for downstream agent retrieval, eliminating read-after-write race conditions.
+Runtime extensibility via two mechanisms:
+- **Custom Fields:** JSONB `custom_fields` column on every entity, indexed by Polygres `registerJsonbPath`
+- **Custom Objects:** `crm.custom_object_definitions` + `crm.custom_object_records` — no migration required to add a new object type
 
----
+### Pillar 2: Agentic Execution Layer
+The MCP server (`src/mcp/`) is the single entrypoint for all AI agent interaction:
 
-## 3. Core Database Schemas
-
-### 3.1. System & Metadata Schema (`core`)
-
-```sql
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "vector";
-
--- Workspaces & Tenants
-CREATE TABLE core.workspace (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL,
-    database_schema VARCHAR(64) UNIQUE NOT NULL, -- e.g. 'workspace_1a2b3c'
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Metadata Catalog: Objects (Tables)
-CREATE TABLE core.object_metadata (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES core.workspace(id) ON DELETE CASCADE,
-    name_singular VARCHAR(64) NOT NULL,
-    name_plural VARCHAR(64) NOT NULL,
-    label_singular VARCHAR(64) NOT NULL,
-    label_plural VARCHAR(64) NOT NULL,
-    target_table_name VARCHAR(64) NOT NULL, -- 'company' or '_customDeal'
-    is_custom BOOLEAN DEFAULT FALSE,
-    is_system BOOLEAN DEFAULT FALSE,
-    readability VARCHAR(32) DEFAULT 'OPEN', -- 'OPEN', 'INHERITED', 'PRIVATE', 'SYSTEM'
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE (workspace_id, name_singular)
-);
-
--- Metadata Catalog: Fields (Columns)
-CREATE TABLE core.field_metadata (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES core.workspace(id) ON DELETE CASCADE,
-    object_metadata_id UUID NOT NULL REFERENCES core.object_metadata(id) ON DELETE CASCADE,
-    name VARCHAR(64) NOT NULL,
-    label VARCHAR(64) NOT NULL,
-    type VARCHAR(32) NOT NULL, -- 'TEXT', 'NUMERIC', 'CURRENCY', 'ACTOR', etc.
-    is_nullable BOOLEAN DEFAULT TRUE,
-    default_value JSONB,
-    settings JSONB,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE (object_metadata_id, name)
-);
-
--- Agent Definitions
-CREATE TABLE core.agent_definition (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES core.workspace(id) ON DELETE CASCADE,
-    name VARCHAR(64) NOT NULL,
-    role VARCHAR(64) NOT NULL, -- 'BDR', 'DEAL_ANALYST', 'DATA_HYGIENE'
-    system_prompt TEXT NOT NULL,
-    allowed_tools TEXT[] NOT NULL DEFAULT '{}',
-    model_name VARCHAR(64) DEFAULT 'claude-3-5-sonnet-20241022',
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Durable Agent Runs
-CREATE TABLE core.agent_run (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES core.workspace(id) ON DELETE CASCADE,
-    agent_id UUID NOT NULL REFERENCES core.agent_definition(id) ON DELETE CASCADE,
-    status VARCHAR(32) NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'RUNNING', 'WAITING_FOR_APPROVAL', 'COMPLETED', 'FAILED'
-    goal_description TEXT NOT NULL,
-    working_memory JSONB DEFAULT '{}'::jsonb,
-    execution_plan JSONB,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    completed_at TIMESTAMPTZ
-);
-
--- Agent Action Receipts (Audit Log)
-CREATE TABLE core.agent_action_receipt (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agent_run_id UUID NOT NULL REFERENCES core.agent_run(id) ON DELETE CASCADE,
-    workspace_id UUID NOT NULL REFERENCES core.workspace(id) ON DELETE CASCADE,
-    tool_name VARCHAR(64) NOT NULL,
-    tool_input JSONB NOT NULL,
-    tool_output JSONB,
-    reasoning_trace TEXT,
-    status VARCHAR(32) NOT NULL, -- 'SUCCESS', 'FAILED', 'ROLLED_BACK'
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Human-In-The-Loop Approval Requests
-CREATE TABLE core.agent_approval_request (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agent_run_id UUID NOT NULL REFERENCES core.agent_run(id) ON DELETE CASCADE,
-    workspace_id UUID NOT NULL REFERENCES core.workspace(id) ON DELETE CASCADE,
-    action_type VARCHAR(64) NOT NULL,
-    action_payload JSONB NOT NULL,
-    risk_tier INT NOT NULL CHECK (risk_tier IN (3, 4)),
-    status VARCHAR(32) NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'APPROVED', 'REJECTED'
-    reviewed_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Transactional Event Outbox
-CREATE TABLE core.event_outbox (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES core.workspace(id) ON DELETE CASCADE,
-    event_type VARCHAR(64) NOT NULL,
-    entity_name VARCHAR(64) NOT NULL,
-    entity_id UUID NOT NULL,
-    payload JSONB NOT NULL,
-    is_processed BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
+```
+Tool Call → executeWithReceipt() → mcp.mcp_tool_call_receipts  (audit)
+                                 → Risk Tier Check
+                                   T1–T3: Execute → return result
+                                   T4:    mcp.mcp_approvals (PENDING) → return PENDING_APPROVAL
 ```
 
-### 3.2. Tenant Schema Structure (`workspace_<id>`)
-
-```sql
--- Standard Entities Example: Company
-CREATE TABLE workspace_1a2b3c.company (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    deleted_at TIMESTAMPTZ,
-    position FLOAT8 DEFAULT 0,
-    search_vector TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', coalesce(name, '') || ' ' || coalesce(domain_name, ''))) STORED,
-    
-    -- Business Fields
-    name TEXT NOT NULL,
-    domain_name TEXT,
-    
-    -- Composite Field: annualRevenue (CURRENCY)
-    annual_revenue_amount_micros NUMERIC,
-    annual_revenue_currency_code TEXT,
-    
-    -- Composite Field: address (ADDRESS)
-    address_street1 TEXT,
-    address_city TEXT,
-    address_state TEXT,
-    address_country TEXT,
-    address_lat NUMERIC,
-    address_lng NUMERIC,
-    
-    -- Composite Field: createdBy (ACTOR)
-    created_by_source TEXT,
-    created_by_workspace_member_id UUID,
-    created_by_name TEXT,
-    created_by_context JSONB
-);
-
--- Polymorphic Junction Example: Note Targets
-CREATE TABLE workspace_1a2b3c.note_target (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    note_id UUID NOT NULL REFERENCES workspace_1a2b3c.note(id) ON DELETE CASCADE,
-    target_company_id UUID REFERENCES workspace_1a2b3c.company(id) ON DELETE CASCADE,
-    target_person_id UUID REFERENCES workspace_1a2b3c.person(id) ON DELETE CASCADE,
-    target_opportunity_id UUID REFERENCES workspace_1a2b3c.opportunity(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
----
-
-## 4. Polygres Integration: Retrieval & Grounding Flows
-
-### 4.1. Entity-Scoped Search via `graphFirst`
-When an agent is asked to analyze communications regarding a specific Account, it invokes `graphFirst` through `polygres-sdk-ts`:
-
-```typescript
-import { Polygres } from 'polygres-sdk-ts';
-
-const client = new Polygres({
-  apiKey: process.env.POLYGRES_API_KEY!,
-  runtimeUrl: process.env.POLYGRES_RUNTIME_URL!,
-});
-
-// Ground query within Acme Corp's relational neighborhood
-export async function getCompanyInsights(companyId: string, questionEmbedding: number[]) {
-  return await client.project().context.graphFirst(
-    'interaction_transcripts',
-    questionEmbedding,
-    {
-      start: { schema: 'workspace_1a2b3c', table: 'company', id: companyId },
-      maxDepth: 2, // company -> contacts -> transcripts
-      graphLimit: 50,
-      limit: 10,
-    }
-  );
-}
-```
-
-### 4.2. Atomic Ingestion with Context Reconciliation
-When ambient bots capture a call or incoming email, mutations must be indexed synchronously to prevent read-after-write agent hallucinations:
-
-```typescript
-export async function logCallTranscript(schema: string, transcriptData: any) {
-  return await client.project().rows.insert({
-    schema,
-    table: 'interaction_transcript',
-    row: {
-      id: crypto.randomUUID(),
-      channel: 'ZOOM',
-      transcript_text: transcriptData.text,
-      summary: transcriptData.summary,
-      associated_company_id: transcriptData.companyId,
-    },
-    reconcileContext: true, // Triggers immediate pgContext indexing
-    waitForContext: true,   // Awaits index readiness
-    waitTimeout: 5.0,
-  });
-}
-```
-
----
-
-## 5. Implementation Roadmap for This CRM
-
-| Phase | Core Objective | Key Deliverables |
+Risk tiers:
+| Tier | Category | Gate Behavior |
 | :--- | :--- | :--- |
-| **Phase 1: Foundation** | Database & Metadata Layer | Initialize PostgreSQL schemas (`core` + tenant schema factory); implement `object_metadata` and `field_metadata` catalogs; build physical composite type flattener. |
-| **Phase 2: Polygres Integration** | Hybrid Search & Grounding | Connect `polygres-sdk-ts`; configure pgContext collections for interaction transcripts and company knowledge; implement `graphFirst` and `joint` search services. |
-| **Phase 3: Ambient Ingestion** | Zero-Entry Communication Pipelines | Implement email & calendar webhook ingesters; build audio/transcript ingestion pipeline with atomic context reconciliation. |
-| **Phase 4: Agentic Core** | Orchestration & Tool Execution | Set up deliberative reasoning engine (LangGraph / state machine); implement MCP tool endpoints (`crm_find`, `crm_update`, `crm_recommend`); build 4-tier HITL approval queue. |
-| **Phase 5: User Interface** | Reactive Front-End | Build Next.js interface with real-time pipeline views, interactive record pages, and the Human Approval Inbox. |
+| T1 | Read-only | Execute freely |
+| T2 | Additive writes | Execute + audit receipt |
+| T3 | Mutative | Execute + audit receipt |
+| T4 | Irreversible | Intercepted → human approval queue |
+
+T4 examples: `crm_merge_records`, moving deal to `CLOSED_WON`, deleting records.
+
+### Pillar 3: Polygres Hybrid Retrieval
+Retrieval is co-located in PostgreSQL — no external vector DB sync lag.
+
+**`graphFirst` search** — entity-scoped semantic retrieval:
+```typescript
+await polygres.project().context.graphFirst('crm_transcripts', embedding, {
+  start: { schema: 'retrieval', table: 'interaction_transcripts', id: companyId },
+  maxDepth: 2,   // company → contacts → transcripts
+  limit: 10,
+});
+```
+
+**`joint` tri-lane search** — simultaneous Vector + Lexical + Graph co-ranking:
+```typescript
+await polygres.project().context.joint('crm_transcripts', embedding, lexicalQuery, {
+  starts: [{ schema: 'crm', table: 'opportunities', id: opportunityId }],
+  semanticWeight: 0.5, lexicalWeight: 0.3, graphWeight: 0.2,
+  limit: 5,
+});
+```
+
+**Atomic context reconciliation** — eliminates read-after-write race conditions:
+```typescript
+await polygres.project().rows.insert({
+  schema: 'retrieval', table: 'interaction_transcripts',
+  row: { ... },
+  reconcileContext: true,   // Immediately indexes vector & graph
+  waitForContext: true,     // Blocks until indexing confirmed
+  waitTimeout: 5.0,
+});
+```
 
 ---
 
-## 6. Directory Structure Blueprint
+## 3. Database Schemas
+
+### 3.1 Migration History
+
+| Migration | Name | Key Changes |
+| :--- | :--- | :--- |
+| `0000` | `shallow_siren` | Initial 5-schema foundation: system, crm, mcp, retrieval, ingest |
+| `0001` | `true_talisman` | Custom fields & custom objects; knowledge documents; ingest outbox |
+| `0002` | `known_omega_flight` | Teams (Clerk Organizations); polymorphic tags (crm.tags + crm.taggables) |
+| `0003` | `concerned_scourge` | Activity Timeline (`crm.timeline_activities`, 2 indexes); text FK alignment |
+| `0004` | `dear_nightcrawler` | Saved Views (`crm.views`, JSONB filters/sort, 3 indexes) |
+| `0005` | `outgoing_black_knight` | Duplicate Detection (`crm.merge_candidates`, confidence_score) |
+| `0006` | `rare_changeling` | Account Hierarchy (`parent_company_id` self-ref FK on crm.companies) |
+| `0007` | `crazy_wolverine` | Outbound Sequences (`crm.sequences`, `sequence_steps`, `sequence_enrollments`) |
+| `0008` | `neat_arclight` | Lead Routing (`crm.assignment_rules`, strategy + JSONB conditions) |
+| `0009` | `peaceful_stick` | CPQ (`crm.products`, `opportunity_line_items`, `quotes`) |
+| `0010` | `large_rogue` | Outbound Webhooks (`crm.webhook_subscriptions`, `webhook_deliveries`) |
+| `0011` | `nice_the_phantom` | Reporting (`crm.dashboards`, `dashboard_widgets`); Permissions (`crm.field_permissions`, `visibility` on companies+opportunities) |
+
+### 3.2 CRM Schema Table Map
 
 ```
-crm/
-├── docs/
-│   ├── twentycrm-database-architecture.md   # Twenty CRM deep-dive
-│   ├── sota-and-agentic-crms.md             # SOTA CRM research & taxonomy
-│   ├── polygres-agentic-crm-integration.md  # Polygres & pgContext integration guide
-│   └── ARCHITECTURE.md                      # (This master architecture document)
-│
-├── packages/
-│   ├── db/                                  # PostgreSQL migrations & TwentyORM core
-│   │   ├── migrations/                      # Core schema DDL
-│   │   ├── metadata/                        # Object & Field metadata catalogs
-│   │   └── schema-manager/                  # Dynamic tenant schema generator
-│   │
-│   ├── polygres-client/                     # Polygres wrapper & pgContext search services
-│   │   ├── collections/                     # Transcript, email & knowledge collections
-│   │   └── retrieval/                       # graphFirst, joint, and recommend helpers
-│   │
-│   ├── agents/                              # Agentic reasoning & MCP tools
-│   │   ├── orchestrator/                    # LangGraph / state machine planner
-│   │   ├── tools/                           # MCP tools (CRM CRUD, Web search, Invoicing)
-│   │   ├── guardrails/                      # Risk tiering & HITL approval triggers
-│   │   └── receipts/                        # Action audit trail loggers
-│   │
-│   └── api/                                 # Next.js / NestJS API Gateway
-│       ├── rest/                            # Dynamic /rest/:object routes
-│       └── graphql/                         # In-memory GraphQL compiler
-│
-├── README.md                                # Root repository guide
-└── ARCHITECTURE.md                          # Symlink / mirror of master system architecture
+crm.companies              id, name, domain_name, industry, ..., parent_company_id, visibility
+crm.people                 id, company_id, first_name, last_name, email, ...
+crm.opportunities          id, company_id, name, stage, amount_micros, ..., visibility
+
+crm.notes / note_targets
+crm.tasks / task_targets
+crm.calendar_events / calendar_event_targets
+
+crm.custom_field_definitions
+crm.custom_object_definitions
+crm.custom_object_records
+
+crm.tags                   id, name, color, category
+crm.taggables              tag_id, taggable_type, taggable_id  (polymorphic, no physical FK)
+
+crm.timeline_activities    entity_type, entity_id, activity_type, actor_source, properties
+
+crm.views                  target_entity, view_type (TABLE/KANBAN/CALENDAR), filters, sort_by, group_by_field
+
+crm.merge_candidates       entity_type, primary_record_id, duplicate_record_id, confidence_score, match_reason
+
+crm.sequences              name, is_active
+crm.sequence_steps         sequence_id, step_order, delay_days, channel, template, prompt_instructions
+crm.sequence_enrollments   sequence_id, person_id, current_step, status, next_step_due_at
+
+crm.assignment_rules       target_entity, conditions JSONB, assignment_strategy, candidate_user_ids, priority
+
+crm.products               name, sku, default_price_micros
+crm.opportunity_line_items opportunity_id, product_id, quantity, unit_price_micros, discount_percent, total_price_micros
+crm.quotes                 opportunity_id, quote_number, status, total_amount_micros, expires_at
+
+crm.webhook_subscriptions  name, target_url, event_types[], secret
+crm.webhook_deliveries     subscription_id, event_type, payload, status, response_status_code
+
+crm.dashboards             name, is_shared
+crm.dashboard_widgets      dashboard_id, widget_type, title, config JSONB, position JSONB
+
+crm.field_permissions      entity_type, field_name, role, can_read, can_write
 ```
+
+### 3.3 Other Schemas
+
+```
+system.users               id (Clerk user_id text PK), email, name, role
+system.organizations       id (Clerk org_id text PK), name, slug
+system.organization_members organization_id, user_id, role
+system.api_keys            id, user_id, key_hash, expires_at
+
+mcp.mcp_clients            client_type, api_key_id, allowed_tools
+mcp.mcp_tool_call_receipts tool_name, tool_input, tool_output, status, duration_ms
+mcp.mcp_approvals          tool_name, action_type, payload, risk_tier, status
+
+retrieval.interaction_transcripts  company_id, opportunity_id, raw_transcript, executive_summary,
+                                   content_embedding (vector), sentiment_score
+retrieval.knowledge_documents      title, content, embedding, source
+
+ingest.source_connections  provider, config JSONB
+ingest.telemetry_events    entity_type, entity_id, event_type, properties
+ingest.event_outbox        event_type, entity_id, payload, is_processed
+```
+
+---
+
+## 4. Source Code Layout
+
+```
+src/
+├── db/
+│   ├── schema/
+│   │   ├── system.ts          users, organizations, api_keys
+│   │   ├── crm.ts             all CRM tables (companies → field_permissions)
+│   │   ├── mcp.ts             mcp_clients, receipts, approvals
+│   │   ├── retrieval.ts       interaction_transcripts, knowledge_documents
+│   │   ├── ingest.ts          source_connections, telemetry_events, event_outbox
+│   │   └── index.ts           Drizzle relations + barrel re-exports
+│   ├── migrations/            0000–0011 SQL files (generated by drizzle-kit)
+│   ├── scripts/               test-*.ts E2E scripts against live DB
+│   ├── migrate.ts             programmatic drizzle-orm/postgres-js migrator
+│   ├── seed.ts                realistic seed data
+│   └── index.ts               postgres-js client + db instance
+│
+├── lib/
+│   ├── polygres.ts            Polygres client, graphFirst, joint, logCallTranscriptAtomically
+│   ├── clerk.ts               Clerk backend client
+│   ├── auth-context.ts        Auth context helpers
+│   ├── timeline.ts            logTimelineActivity, getTimelineActivities, formatTimelineActivity
+│   ├── views.ts               createView, runView, dynamic query builder (10 operators)
+│   ├── duplicates.ts          normalizeDomain, Dice bigram similarity, findDuplicates, mergeRecords
+│   ├── hierarchy.ts           getCompanyAncestors, getCompanyDescendants, wouldCreateCycle
+│   ├── sequences.ts           createSequence, enrollPersonInSequence, advanceSequenceStep
+│   ├── routing.ts             evaluateConditions, selectAssignedUser, routeAndAssignRecord
+│   ├── cpq.ts                 addOpportunityLineItem, generateQuote, updateQuoteStatus
+│   ├── webhooks.ts            signPayload, dispatchWebhookEvent, listWebhookDeliveries
+│   ├── csv.ts                 parseCSV, importCSV, exportCSV
+│   ├── reporting.ts           getPipelineFunnelReport, getRepPerformanceReport, getDealVelocityReport
+│   └── permissions.ts         canReadRecord, setRecordVisibility, applyFieldMasking
+│
+├── mcp/
+│   ├── server.ts              createCrmMcpServer() — 62 tool registrations + resources + prompts
+│   ├── tools.ts               crmToolSchemas (Zod) + crmToolHandlers
+│   ├── resources.ts           pipeline/summary, companies/{id}, transcripts/{id}
+│   ├── prompts.ts             pre_call_dossier, deal_risk_review
+│   └── stdio.ts               stdio transport entry point (pnpm mcp)
+│
+└── app/
+    ├── api/
+    │   └── webhooks/clerk/route.ts   Clerk webhook sync (users, orgs, memberships)
+    └── middleware.ts                 Clerk auth middleware
+```
+
+---
+
+## 5. Key Design Decisions
+
+**Single-tenant, not multi-tenant.** No workspace-per-schema isolation. Designed for one company running their own CRM, or an agency deploying one instance per client. `organization_id` on key tables supports optionally scoping data to a Clerk Organization (for the agency deployment pattern) without a schema change.
+
+**`db:generate` + `db:migrate`, never `db:push`.** Drizzle Kit's `push` command prompts dangerous truncations on live data. All schema changes go through `pnpm db:generate` (produces idempotent SQL) + `pnpm db:migrate` (applies via `drizzle-orm/postgres-js/migrator`).
+
+**Foreign keys are knowledge graph edges.** Polygres infers the graph topology from PostgreSQL foreign key definitions. No separate edge table. Adding a new FK to a Drizzle table definition automatically extends the Polygres graph.
+
+**Polymorphic tags break the typed-junction pattern intentionally.** All other junction tables (`note_targets`, `task_targets`, etc.) use typed FK columns. `crm.taggables` uses a `taggable_type` discriminator + bare UUID instead, because tags must work across dynamically-created custom objects that can't be enumerated at schema-design time. Explicitly not a Polygres graph edge.
+
+**`system.users.id` is a Clerk user ID (`text`), not `uuid`.** Clerk user IDs look like `user_2NNBh3BtqpyEFBR7oM5rQ3p1h7T`. All downstream FK columns (`companies.owner_id`, `opportunities.owner_id`, `tasks.assignee_id`, `mcp_approvals.assigned_to_user_id`) are `text` to match.
+
+**Activity Timeline is append-only and auto-populated.** `crm.timeline_activities` is written by `src/lib/timeline.ts` hooks inside every mutating MCP tool handler — `createCompany`, `updateOpportunityStage`, `tagRecord`, `advanceSequenceStep`, `routeAndAssignRecord`, `mergeRecords`, `addOpportunityLineItem`, `generateQuote`, `setRecordVisibility`, etc. Agents never need to explicitly call `crm_log_timeline_activity` for standard mutations; it's only needed for external events (calls placed manually, emails sent via external client, etc.).
+
+---
+
+## 6. CRM Primitives Implementation Status
+
+All standard CRM primitives identified in `docs/missing-crm-primitives.md` are implemented except Native Email & Calendar Sync (OAuth infra not in scope for a self-hosted boilerplate).
+
+| Primitive | Status | Lib | Key Tables |
+| :--- | :---: | :--- | :--- |
+| Activity Timeline | ✅ | `timeline.ts` | `crm.timeline_activities` |
+| Saved Views | ✅ | `views.ts` | `crm.views` |
+| Duplicate Detection & Merge | ✅ | `duplicates.ts` | `crm.merge_candidates` |
+| Outbound Sequences | ✅ | `sequences.ts` | `crm.sequences`, `sequence_steps`, `sequence_enrollments` |
+| Lead Routing | ✅ | `routing.ts` | `crm.assignment_rules` |
+| Account Hierarchy | ✅ | `hierarchy.ts` | `companies.parent_company_id` (self-ref FK) |
+| CPQ (Products, Quotes) | ✅ | `cpq.ts` | `crm.products`, `opportunity_line_items`, `quotes` |
+| Outbound Webhooks | ✅ | `webhooks.ts` | `crm.webhook_subscriptions`, `webhook_deliveries` |
+| Import / Export (CSV) | ✅ | `csv.ts` | — |
+| Reporting & Dashboards | ✅ | `reporting.ts` | `crm.dashboards`, `dashboard_widgets` |
+| Field/Record Permissions | ✅ | `permissions.ts` | `crm.field_permissions`, `visibility` column |
+| Native Email & Calendar Sync | ❌ | — | Blocked: OAuth app registration required |
