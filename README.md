@@ -40,6 +40,7 @@ pnpm mcp
 - [Extending Fields & Creating Custom Objects](./docs/extending-fields-and-custom-objects.md) — Dual-layer customization guide detailing code-first Drizzle extensions vs. runtime no-code custom fields (JSONB + GIN) and dynamic custom objects with Polygres `registerJsonbPath` indexing.
 - [Teams (Organizations) & Tags](./docs/teams-and-tags.md) — Clerk Organizations for multi-team grouping (webhook-synced to `system.organizations`/`organization_members`) and a polymorphic tagging system (`crm.tags`/`taggables`) that labels any standard or custom CRM object, with 6 MCP tools verified end-to-end.
 - [Production Roadmap: The 6 Missing Pillars](./docs/production-roadmap-and-missing-pillars.md) — Operational blueprint detailing ambient ingestion (Recall.ai/Zoom), Slack HITL notifications, agent simulation/dry-run mode, analytical SQL views, and multi-channel outbound (Resend & WhatsApp).
+- [What Other CRM Primitives Are We Missing?](./docs/missing-crm-primitives.md) — Gap analysis against mature CRMs: Saved Views, Activity Timeline, Duplicate Detection & Merge, Outbound Sequences, Lead Routing, Account Hierarchy, CPQ, Outbound Webhooks, and more — with schema sketches and a prioritized build order.
 
 ## Technical & Operational Specifications
 
