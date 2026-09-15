@@ -18,6 +18,9 @@ import {
   timelineActivities,
   views,
   mergeCandidates,
+  sequences,
+  sequenceSteps,
+  sequenceEnrollments,
 } from './crm';
 import { mcpClients, mcpToolCallReceipts, mcpApprovals } from './mcp';
 import { interactionTranscripts, knowledgeDocuments } from './retrieval';
@@ -44,6 +47,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   timelineActivities: many(timelineActivities),
   views: many(views),
   reviewedMerges: many(mergeCandidates),
+  ownedSequences: many(sequences),
 }));
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
@@ -55,6 +59,7 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   timelineActivities: many(timelineActivities),
   views: many(views),
   mergeCandidates: many(mergeCandidates),
+  sequences: many(sequences),
 }));
 
 export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
@@ -92,6 +97,7 @@ export const companiesRelations = relations(companies, ({ one, many }) => ({
   transcripts: many(interactionTranscripts),
   telemetryEvents: many(telemetryEvents),
   customObjectRecords: many(customObjectRecords),
+  sequenceEnrollments: many(sequenceEnrollments),
 }));
 
 export const peopleRelations = relations(people, ({ one, many }) => ({
@@ -103,6 +109,7 @@ export const peopleRelations = relations(people, ({ one, many }) => ({
   noteTargets: many(noteTargets),
   transcripts: many(interactionTranscripts),
   customObjectRecords: many(customObjectRecords),
+  sequenceEnrollments: many(sequenceEnrollments),
 }));
 
 export const opportunitiesRelations = relations(opportunities, ({ one, many }) => ({
@@ -228,5 +235,44 @@ export const mergeCandidatesRelations = relations(mergeCandidates, ({ one }) => 
   reviewedByUser: one(users, {
     fields: [mergeCandidates.reviewedByUserId],
     references: [users.id],
+  }),
+}));
+
+export const sequencesRelations = relations(sequences, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [sequences.organizationId],
+    references: [organizations.id],
+  }),
+  owner: one(users, {
+    fields: [sequences.ownerId],
+    references: [users.id],
+  }),
+  steps: many(sequenceSteps),
+  enrollments: many(sequenceEnrollments),
+}));
+
+export const sequenceStepsRelations = relations(sequenceSteps, ({ one }) => ({
+  sequence: one(sequences, {
+    fields: [sequenceSteps.sequenceId],
+    references: [sequences.id],
+  }),
+}));
+
+export const sequenceEnrollmentsRelations = relations(sequenceEnrollments, ({ one }) => ({
+  sequence: one(sequences, {
+    fields: [sequenceEnrollments.sequenceId],
+    references: [sequences.id],
+  }),
+  person: one(people, {
+    fields: [sequenceEnrollments.personId],
+    references: [people.id],
+  }),
+  company: one(companies, {
+    fields: [sequenceEnrollments.companyId],
+    references: [companies.id],
+  }),
+  organization: one(organizations, {
+    fields: [sequenceEnrollments.organizationId],
+    references: [organizations.id],
   }),
 }));

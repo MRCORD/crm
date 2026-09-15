@@ -32,6 +32,16 @@ import {
   getCompanyHierarchy,
   setParentCompany,
 } from '../lib/hierarchy';
+import {
+  createSequence,
+  enrollPersonInSequence,
+  advanceSequenceStep,
+  exitEnrollmentOnReply,
+  getSequenceProgress,
+  listSequences,
+  setEnrollmentStatus,
+  StepDefinition,
+} from '../lib/sequences';
 
 /**
  * Tool Schemas for Model Context Protocol
@@ -359,6 +369,78 @@ export const crmToolSchemas = {
     parameters: z.object({
       companyId: z.string().uuid().describe('The UUID of the subsidiary company'),
       parentCompanyId: z.string().uuid().nullable().describe('The UUID of the parent company, or null to detach'),
+    }),
+  },
+
+  // 30. Create Outbound Sequence
+  createSequence: {
+    description: 'Define a multi-touch outbound sales sequence/cadence with ordered steps, channels, delay days, and message templates.',
+    parameters: z.object({
+      name: z.string().describe("Sequence name, e.g. 'Enterprise Cold Outbound - 5 Touch'"),
+      description: z.string().optional(),
+      steps: z.array(z.object({
+        stepOrder: z.number().int().min(1),
+        delayDays: z.number().int().min(0).default(0),
+        channel: z.enum(['EMAIL', 'LINKEDIN', 'PHONE_CALL', 'TASK']),
+        templateSubject: z.string().optional(),
+        templateBody: z.string().optional(),
+        promptInstructions: z.string().optional().describe('AI SDR instructions for dynamically generating this touchpoint'),
+        exitOnReply: z.boolean().default(true).optional(),
+      })).min(1).describe('Ordered list of cadence steps'),
+    }),
+  },
+
+  // 31. List Sequences
+  listSequences: {
+    description: 'List all outbound sequences with step definitions and active enrollment metrics.',
+    parameters: z.object({
+      organizationId: z.string().optional(),
+    }),
+  },
+
+  // 32. Enroll Contact in Sequence
+  enrollInSequence: {
+    description: 'Enroll a prospect contact into an outbound sequence. Enforces duplicate active enrollment prevention.',
+    parameters: z.object({
+      sequenceId: z.string().uuid().describe('UUID of the sequence to enroll into'),
+      personId: z.string().uuid().describe('UUID of the contact person'),
+    }),
+  },
+
+  // 33. Advance Sequence Step
+  advanceSequenceStep: {
+    description: 'Execute the current step of an enrollment (logs timeline activity / creates task) and schedule the next step or complete sequence.',
+    parameters: z.object({
+      enrollmentId: z.string().uuid().describe('UUID of the active sequence enrollment'),
+      touchContent: z.string().optional().describe('Customized or AI-generated message content executed for this touchpoint'),
+      notes: z.string().optional().describe('Optional internal rep notes'),
+    }),
+  },
+
+  // 34. Get Sequence Progress
+  getSequenceProgress: {
+    description: 'Get detailed progress report for an enrollment: all steps with status (COMPLETED, CURRENT, UPCOMING) and contact details.',
+    parameters: z.object({
+      enrollmentId: z.string().uuid().describe('UUID of the sequence enrollment'),
+    }),
+  },
+
+  // 35. Set Enrollment Status
+  setEnrollmentStatus: {
+    description: 'Pause or resume an active sequence enrollment.',
+    parameters: z.object({
+      enrollmentId: z.string().uuid().describe('UUID of the enrollment'),
+      status: z.enum(['ACTIVE', 'PAUSED']),
+    }),
+  },
+
+  // 36. Exit Sequence on Reply
+  exitSequenceOnReply: {
+    description: 'Immediately stop sequence enrollments for a prospect when an inbound reply or message is received.',
+    parameters: z.object({
+      personId: z.string().uuid().describe('UUID of the contact who replied'),
+      sequenceId: z.string().uuid().optional().describe('Optional specific sequence ID to exit; omit to exit all active sequences for this person'),
+      replySnippet: z.string().optional().describe('Snippet of the prospect reply message'),
     }),
   },
 };
@@ -971,5 +1053,58 @@ export const crmToolHandlers = {
         : `Company ${companyId} detached from parent`,
       company: updated,
     };
+  },
+
+  async createSequence(input: {
+    name: string;
+    description?: string;
+    steps: StepDefinition[];
+  }) {
+    const sequence = await createSequence(input);
+    return { success: true, sequence };
+  },
+
+  async listSequences(input: { organizationId?: string }) {
+    const seqs = await listSequences(input.organizationId);
+    return { count: seqs.length, sequences: seqs };
+  },
+
+  async enrollInSequence({ sequenceId, personId }: {
+    sequenceId: string;
+    personId: string;
+  }) {
+    const result = await enrollPersonInSequence({ sequenceId, personId });
+    return result;
+  },
+
+  async advanceSequenceStep({ enrollmentId, touchContent, notes }: {
+    enrollmentId: string;
+    touchContent?: string;
+    notes?: string;
+  }) {
+    const result = await advanceSequenceStep({ enrollmentId, touchContent, notes });
+    return result;
+  },
+
+  async getSequenceProgress({ enrollmentId }: { enrollmentId: string }) {
+    const progress = await getSequenceProgress(enrollmentId);
+    return progress;
+  },
+
+  async setEnrollmentStatus({ enrollmentId, status }: {
+    enrollmentId: string;
+    status: 'ACTIVE' | 'PAUSED';
+  }) {
+    const updated = await setEnrollmentStatus(enrollmentId, status);
+    return { success: true, enrollment: updated };
+  },
+
+  async exitSequenceOnReply({ personId, sequenceId, replySnippet }: {
+    personId: string;
+    sequenceId?: string;
+    replySnippet?: string;
+  }) {
+    const result = await exitEnrollmentOnReply({ personId, sequenceId, replySnippet });
+    return { success: true, ...result };
   },
 };

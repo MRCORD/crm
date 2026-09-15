@@ -389,6 +389,83 @@ export function createCrmMcpServer() {
     }
   );
 
+  server.tool(
+    'crm_create_sequence',
+    crmToolSchemas.createSequence.description,
+    crmToolSchemas.createSequence.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_create_sequence', args, undefined, undefined, () =>
+        crmToolHandlers.createSequence(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_list_sequences',
+    crmToolSchemas.listSequences.description,
+    crmToolSchemas.listSequences.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_list_sequences', args, undefined, undefined, () =>
+        crmToolHandlers.listSequences(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_enroll_in_sequence',
+    crmToolSchemas.enrollInSequence.description,
+    crmToolSchemas.enrollInSequence.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_enroll_in_sequence', args, 'person', args.personId, () =>
+        crmToolHandlers.enrollInSequence(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_advance_sequence_step',
+    crmToolSchemas.advanceSequenceStep.description,
+    crmToolSchemas.advanceSequenceStep.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_advance_sequence_step', args, 'sequence_enrollment', args.enrollmentId, () =>
+        crmToolHandlers.advanceSequenceStep(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_get_sequence_progress',
+    crmToolSchemas.getSequenceProgress.description,
+    crmToolSchemas.getSequenceProgress.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_get_sequence_progress', args, 'sequence_enrollment', args.enrollmentId, () =>
+        crmToolHandlers.getSequenceProgress(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_set_sequence_enrollment_status',
+    crmToolSchemas.setEnrollmentStatus.description,
+    crmToolSchemas.setEnrollmentStatus.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_set_sequence_enrollment_status', args, 'sequence_enrollment', args.enrollmentId, () =>
+        crmToolHandlers.setEnrollmentStatus(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_exit_sequence_on_reply',
+    crmToolSchemas.exitSequenceOnReply.description,
+    crmToolSchemas.exitSequenceOnReply.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_exit_sequence_on_reply', args, 'person', args.personId, () =>
+        crmToolHandlers.exitSequenceOnReply(args)
+      );
+    }
+  );
+
   // ============================================================================
   // REGISTER MCP RESOURCES
   // ============================================================================
