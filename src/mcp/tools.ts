@@ -22,6 +22,12 @@ import {
   FilterCondition,
   SortCondition,
 } from '../lib/views';
+import {
+  findDuplicates,
+  mergeRecords,
+  listMergeCandidates,
+  dismissMergeCandidate,
+} from '../lib/duplicates';
 
 /**
  * Tool Schemas for Model Context Protocol
@@ -292,6 +298,46 @@ export const crmToolSchemas = {
     description: 'Delete an existing saved view by its UUID.',
     parameters: z.object({
       viewId: z.string().uuid().describe('The UUID of the view to delete'),
+    }),
+  },
+
+  // 24. Find Duplicates
+  findDuplicates: {
+    description: 'Scan the CRM for potential duplicate companies (by domain, exact name, or fuzzy name similarity) or contacts (by email, company match, or fuzzy name).',
+    parameters: z.object({
+      entityType: z.enum(['company', 'person']).describe('Target entity type to scan for duplicates'),
+      recordId: z.string().uuid().optional().describe('Optional UUID to check a specific record rather than scanning all records'),
+      minConfidence: z.number().min(0.5).max(1.0).default(0.75).optional().describe('Minimum similarity confidence threshold (0.50 to 1.00)'),
+    }),
+  },
+
+  // 25. List Merge Candidates
+  listMergeCandidates: {
+    description: 'List detected duplicate candidate pairs waiting for review or already merged/dismissed.',
+    parameters: z.object({
+      entityType: z.enum(['company', 'person']).optional(),
+      status: z.enum(['PENDING', 'MERGED', 'DISMISSED']).default('PENDING').optional(),
+      limit: z.number().min(1).max(200).default(50).optional(),
+    }),
+  },
+
+  // 26. Merge Records (Tier 4 Irreversible Action - HITL Gated)
+  mergeRecords: {
+    description: 'Merge a duplicate record into a primary record. Re-points all related records (opportunities, contacts, notes, tasks, transcripts, tags) and soft-deletes the duplicate. Unapproved calls trigger Human-in-the-Loop review.',
+    parameters: z.object({
+      entityType: z.enum(['company', 'person']).describe('Type of records being merged'),
+      primaryRecordId: z.string().uuid().describe('The surviving canonical record UUID'),
+      duplicateRecordId: z.string().uuid().describe('The duplicate record UUID to be merged and soft-deleted'),
+      approved: z.boolean().default(false).optional().describe('Set to true if human has explicitly authorized this irreversible merge'),
+      reason: z.string().optional().describe('Justification for the merge'),
+    }),
+  },
+
+  // 27. Dismiss Merge Candidate
+  dismissMergeCandidate: {
+    description: 'Dismiss a detected duplicate candidate pair as a false positive.',
+    parameters: z.object({
+      candidateId: z.string().uuid().describe('UUID of the merge_candidates record'),
     }),
   },
 };
@@ -820,5 +866,70 @@ export const crmToolHandlers = {
   async deleteView({ viewId }: { viewId: string }) {
     const deleted = await deleteView(viewId);
     return { success: true, deletedView: deleted };
+  },
+
+  async findDuplicates({ entityType, recordId, minConfidence = 0.75 }: {
+    entityType: 'company' | 'person';
+    recordId?: string;
+    minConfidence?: number;
+  }) {
+    const candidates = await findDuplicates({ entityType, recordId, minConfidence, persist: true });
+    return {
+      entityType,
+      foundCount: candidates.length,
+      candidates,
+    };
+  },
+
+  async listMergeCandidates(options: {
+    entityType?: 'company' | 'person';
+    status?: 'PENDING' | 'MERGED' | 'DISMISSED';
+    limit?: number;
+  }) {
+    const candidates = await listMergeCandidates(options);
+    return { count: candidates.length, candidates };
+  },
+
+  async mergeRecords({ entityType, primaryRecordId, duplicateRecordId, approved = false, reason }: {
+    entityType: 'company' | 'person';
+    primaryRecordId: string;
+    duplicateRecordId: string;
+    approved?: boolean;
+    reason?: string;
+  }) {
+    // Tier 4 HITL Risk Gate: If not explicitly authorized, route to human approval queue
+    if (!approved) {
+      const [approval] = await db.insert(mcpApprovals).values({
+        toolName: 'mergeRecords',
+        actionType: 'MERGE_RECORDS_IRREVERSIBLE',
+        payload: { entityType, primaryRecordId, duplicateRecordId, reason },
+        proposedText: `Agent requested merge of duplicate ${entityType} ${duplicateRecordId} into primary ${primaryRecordId}. Reason: ${reason || 'Automated deduplication'}`,
+        riskTier: 4,
+        status: 'PENDING',
+      }).returning();
+
+      return {
+        status: 'PENDING_APPROVAL',
+        message: `Irreversible merge intercepted. Human approval request #${approval.id} created in the CRM inbox.`,
+        approvalId: approval.id,
+      };
+    }
+
+    const result = await mergeRecords({
+      entityType,
+      primaryRecordId,
+      duplicateRecordId,
+    });
+
+    return {
+      status: 'SUCCESS',
+      message: `Successfully merged ${entityType} ${duplicateRecordId} into ${primaryRecordId}`,
+      ...result,
+    };
+  },
+
+  async dismissMergeCandidate({ candidateId }: { candidateId: string }) {
+    const updated = await dismissMergeCandidate(candidateId);
+    return { success: true, candidate: updated };
   },
 };

@@ -305,3 +305,33 @@ export const views = crmSchema.table(
     index('idx_views_org').on(table.organizationId),
   ]
 );
+
+// ============================================================================
+// 12. DUPLICATE DETECTION & RECORD MERGE
+// ============================================================================
+
+/**
+ * Merge candidate pairs identified by automated duplicate detection rules
+ * (exact domain match, exact email match, fuzzy name similarity).
+ */
+export const mergeCandidates = crmSchema.table(
+  'merge_candidates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    entityType: text('entity_type').notNull(), // 'company' | 'person'
+    primaryRecordId: uuid('primary_record_id').notNull(),
+    duplicateRecordId: uuid('duplicate_record_id').notNull(),
+    confidenceScore: numeric('confidence_score', { precision: 3, scale: 2 }).notNull(), // 0.00 to 1.00
+    matchReason: text('match_reason').notNull(), // 'DOMAIN_MATCH', 'EMAIL_MATCH', 'FUZZY_NAME'
+    status: text('status').default('PENDING').notNull(), // 'PENDING' | 'MERGED' | 'DISMISSED'
+    reviewedByUserId: text('reviewed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_merge_status').on(table.status),
+    index('idx_merge_entity').on(table.entityType, table.primaryRecordId),
+    index('idx_merge_org').on(table.organizationId),
+  ]
+);

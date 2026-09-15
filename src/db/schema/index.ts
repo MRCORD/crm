@@ -17,6 +17,7 @@ import {
   taggables,
   timelineActivities,
   views,
+  mergeCandidates,
 } from './crm';
 import { mcpClients, mcpToolCallReceipts, mcpApprovals } from './mcp';
 import { interactionTranscripts, knowledgeDocuments } from './retrieval';
@@ -42,6 +43,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   organizationMemberships: many(organizationMembers),
   timelineActivities: many(timelineActivities),
   views: many(views),
+  reviewedMerges: many(mergeCandidates),
 }));
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
@@ -52,6 +54,7 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   apiKeys: many(apiKeys),
   timelineActivities: many(timelineActivities),
   views: many(views),
+  mergeCandidates: many(mergeCandidates),
 }));
 
 export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
@@ -205,6 +208,17 @@ export const viewsRelations = relations(views, ({ one }) => ({
   }),
   owner: one(users, {
     fields: [views.ownerId],
+    references: [users.id],
+  }),
+}));
+
+export const mergeCandidatesRelations = relations(mergeCandidates, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [mergeCandidates.organizationId],
+    references: [organizations.id],
+  }),
+  reviewedByUser: one(users, {
+    fields: [mergeCandidates.reviewedByUserId],
     references: [users.id],
   }),
 }));
