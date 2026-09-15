@@ -42,6 +42,13 @@ import {
   setEnrollmentStatus,
   StepDefinition,
 } from '../lib/sequences';
+import {
+  createAssignmentRule,
+  listAssignmentRules,
+  routeAndAssignRecord,
+  deleteAssignmentRule,
+  AssignmentStrategy,
+} from '../lib/routing';
 
 /**
  * Tool Schemas for Model Context Protocol
@@ -441,6 +448,50 @@ export const crmToolSchemas = {
       personId: z.string().uuid().describe('UUID of the contact who replied'),
       sequenceId: z.string().uuid().optional().describe('Optional specific sequence ID to exit; omit to exit all active sequences for this person'),
       replySnippet: z.string().optional().describe('Snippet of the prospect reply message'),
+    }),
+  },
+
+  // 37. Create Lead Assignment Rule
+  createAssignmentRule: {
+    description: 'Create an automated lead routing and assignment rule with filter criteria and strategy (ROUND_ROBIN, LOAD_BALANCED, or SPECIFIC_USER).',
+    parameters: z.object({
+      name: z.string().describe("Rule name, e.g. 'Enterprise Opportunities to Strategic AEs'"),
+      targetEntity: z.enum(['opportunities', 'people', 'companies']),
+      conditions: z.array(z.object({
+        field: z.string(),
+        operator: z.enum(['eq', 'neq', 'contains', 'gt', 'gte', 'lt', 'lte', 'in', 'is_null', 'is_not_null']),
+        value: z.unknown().optional(),
+      })).default([]).optional(),
+      assignmentStrategy: z.enum(['ROUND_ROBIN', 'LOAD_BALANCED', 'SPECIFIC_USER']),
+      candidateUserIds: z.array(z.string()).min(1).describe('Array of user IDs eligible for assignment under this rule'),
+      priority: z.number().int().default(0).optional().describe('Evaluation order (lower runs first)'),
+    }),
+  },
+
+  // 38. List Assignment Rules
+  listAssignmentRules: {
+    description: 'List active lead routing and assignment rules, optionally filtered by target entity.',
+    parameters: z.object({
+      targetEntity: z.enum(['opportunities', 'people', 'companies']).optional(),
+      isActive: z.boolean().optional(),
+    }),
+  },
+
+  // 39. Route and Assign Record
+  routeAndAssignRecord: {
+    description: 'Evaluate assignment rules against a record, assign it to the optimal owner rep, and log the assignment to the activity timeline.',
+    parameters: z.object({
+      targetEntity: z.enum(['opportunities', 'people', 'companies']),
+      recordId: z.string().uuid().describe('UUID of the record to route and assign'),
+      forceRuleId: z.string().uuid().optional().describe('Optional specific rule ID to bypass priority matching'),
+    }),
+  },
+
+  // 40. Delete Assignment Rule
+  deleteAssignmentRule: {
+    description: 'Delete an assignment rule by ID.',
+    parameters: z.object({
+      ruleId: z.string().uuid().describe('UUID of the rule to delete'),
     }),
   },
 };
@@ -1106,5 +1157,42 @@ export const crmToolHandlers = {
   }) {
     const result = await exitEnrollmentOnReply({ personId, sequenceId, replySnippet });
     return { success: true, ...result };
+  },
+
+  async createAssignmentRule(input: {
+    name: string;
+    targetEntity: 'opportunities' | 'people' | 'companies';
+    conditions?: FilterCondition[];
+    assignmentStrategy: AssignmentStrategy;
+    candidateUserIds: string[];
+    priority?: number;
+  }) {
+    const rule = await createAssignmentRule({
+      ...input,
+      conditions: input.conditions ?? [],
+    });
+    return { success: true, rule };
+  },
+
+  async listAssignmentRules(options?: {
+    targetEntity?: 'opportunities' | 'people' | 'companies';
+    isActive?: boolean;
+  }) {
+    const rules = await listAssignmentRules(options);
+    return { count: rules.length, rules };
+  },
+
+  async routeAndAssignRecord(input: {
+    targetEntity: 'opportunities' | 'people' | 'companies';
+    recordId: string;
+    forceRuleId?: string;
+  }) {
+    const result = await routeAndAssignRecord(input);
+    return result;
+  },
+
+  async deleteAssignmentRule({ ruleId }: { ruleId: string }) {
+    const deleted = await deleteAssignmentRule(ruleId);
+    return { success: true, deletedRule: deleted };
   },
 };

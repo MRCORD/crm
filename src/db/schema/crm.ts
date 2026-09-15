@@ -410,3 +410,34 @@ export const sequenceEnrollments = crmSchema.table(
     index('idx_sequence_enrollments_seq').on(table.sequenceId),
   ]
 );
+
+// ============================================================================
+// 14. LEAD ROUTING & ASSIGNMENT RULES (Territory, Deal Size, Round-Robin)
+// ============================================================================
+
+/**
+ * Lead routing and ownership assignment rules.
+ * Directs newly created or unassigned records to reps based on
+ * criteria (territory, revenue thresholds) and assignment strategy (round-robin, load-balanced).
+ */
+export const assignmentRules = crmSchema.table(
+  'assignment_rules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(), // e.g. "Enterprise Deals to Strategic AEs"
+    targetEntity: text('target_entity').notNull(), // 'opportunities' | 'people' | 'companies'
+    conditions: jsonb('conditions').default([]).notNull(), // [{ field: 'annualRevenueAmountMicros', operator: 'gt', value: 1000000000000 }]
+    assignmentStrategy: text('assignment_strategy').default('ROUND_ROBIN').notNull(), // 'ROUND_ROBIN' | 'LOAD_BALANCED' | 'SPECIFIC_USER'
+    candidateUserIds: text('candidate_user_ids').array().default([]).notNull(), // Array of system.users.id
+    lastAssignedUserId: text('last_assigned_user_id'), // Pointer for stateful round-robin cycle
+    priority: integer('priority').default(0).notNull(), // Lower number runs first
+    isActive: boolean('is_active').default(true).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_assignment_rules_target').on(table.targetEntity, table.isActive, table.priority),
+    index('idx_assignment_rules_org').on(table.organizationId),
+  ]
+);

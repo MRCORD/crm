@@ -466,6 +466,50 @@ export function createCrmMcpServer() {
     }
   );
 
+  server.tool(
+    'crm_create_assignment_rule',
+    crmToolSchemas.createAssignmentRule.description,
+    crmToolSchemas.createAssignmentRule.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_create_assignment_rule', args, args.targetEntity, undefined, () =>
+        crmToolHandlers.createAssignmentRule(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_list_assignment_rules',
+    crmToolSchemas.listAssignmentRules.description,
+    crmToolSchemas.listAssignmentRules.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_list_assignment_rules', args, args.targetEntity, undefined, () =>
+        crmToolHandlers.listAssignmentRules(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_route_and_assign_record',
+    crmToolSchemas.routeAndAssignRecord.description,
+    crmToolSchemas.routeAndAssignRecord.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_route_and_assign_record', args, args.targetEntity, args.recordId, () =>
+        crmToolHandlers.routeAndAssignRecord(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_delete_assignment_rule',
+    crmToolSchemas.deleteAssignmentRule.description,
+    crmToolSchemas.deleteAssignmentRule.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_delete_assignment_rule', args, undefined, args.ruleId, () =>
+        crmToolHandlers.deleteAssignmentRule(args)
+      );
+    }
+  );
+
   // ============================================================================
   // REGISTER MCP RESOURCES
   // ============================================================================

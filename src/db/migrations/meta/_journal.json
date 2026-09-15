@@ -57,6 +57,13 @@
       "when": 1789501957203,
       "tag": "0007_crazy_wolverine",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789502248456,
+      "tag": "0008_neat_arclight",
+      "breakpoints": true
     }
   ]
 }

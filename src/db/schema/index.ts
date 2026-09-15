@@ -21,6 +21,7 @@ import {
   sequences,
   sequenceSteps,
   sequenceEnrollments,
+  assignmentRules,
 } from './crm';
 import { mcpClients, mcpToolCallReceipts, mcpApprovals } from './mcp';
 import { interactionTranscripts, knowledgeDocuments } from './retrieval';
@@ -58,8 +59,8 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   apiKeys: many(apiKeys),
   timelineActivities: many(timelineActivities),
   views: many(views),
-  mergeCandidates: many(mergeCandidates),
   sequences: many(sequences),
+  assignmentRules: many(assignmentRules),
 }));
 
 export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
@@ -273,6 +274,13 @@ export const sequenceEnrollmentsRelations = relations(sequenceEnrollments, ({ on
   }),
   organization: one(organizations, {
     fields: [sequenceEnrollments.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export const assignmentRulesRelations = relations(assignmentRules, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [assignmentRules.organizationId],
     references: [organizations.id],
   }),
 }));
