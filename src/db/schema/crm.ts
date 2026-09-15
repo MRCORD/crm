@@ -339,3 +339,74 @@ export const mergeCandidates = crmSchema.table(
     index('idx_merge_org').on(table.organizationId),
   ]
 );
+
+// ============================================================================
+// 13. OUTBOUND SEQUENCES & CADENCES (Outreach / Salesloft Automation Engine)
+// ============================================================================
+
+/**
+ * Multi-touch outbound cadence definitions.
+ */
+export const sequences = crmSchema.table(
+  'sequences',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    ownerId: text('owner_id').references(() => users.id, { onDelete: 'set null' }),
+    name: text('name').notNull(), // e.g. "Enterprise Cold Outbound - 7 Touch"
+    description: text('description'),
+    isActive: boolean('is_active').default(true).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_sequences_org').on(table.organizationId),
+  ]
+);
+
+/**
+ * Ordered steps within an outbound sequence.
+ */
+export const sequenceSteps = crmSchema.table(
+  'sequence_steps',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sequenceId: uuid('sequence_id').references(() => sequences.id, { onDelete: 'cascade' }).notNull(),
+    stepOrder: integer('step_order').notNull(), // 1, 2, 3, ...
+    delayDays: integer('delay_days').default(0).notNull(), // Delay in days before executing this step
+    channel: text('channel').notNull(), // 'EMAIL' | 'LINKEDIN' | 'PHONE_CALL' | 'TASK'
+    templateSubject: text('template_subject'),
+    templateBody: text('template_body'),
+    promptInstructions: text('prompt_instructions'), // AI SDR prompt instructions for dynamic generation
+    exitOnReply: boolean('exit_on_reply').default(true).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_sequence_steps_seq').on(table.sequenceId, table.stepOrder),
+  ]
+);
+
+/**
+ * Contact enrollments tracking state machine progress through a sequence.
+ */
+export const sequenceEnrollments = crmSchema.table(
+  'sequence_enrollments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    sequenceId: uuid('sequence_id').references(() => sequences.id, { onDelete: 'cascade' }).notNull(),
+    personId: uuid('person_id').references(() => people.id, { onDelete: 'cascade' }).notNull(),
+    companyId: uuid('company_id').references(() => companies.id, { onDelete: 'set null' }),
+    currentStep: integer('current_step').default(1).notNull(),
+    status: text('status').default('ACTIVE').notNull(), // 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'EXITED_REPLY'
+    enrolledAt: timestamp('enrolled_at', { withTimezone: true }).defaultNow().notNull(),
+    nextStepDueAt: timestamp('next_step_due_at', { withTimezone: true }).defaultNow().notNull(),
+    lastStepExecutedAt: timestamp('last_step_executed_at', { withTimezone: true }),
+    metadata: jsonb('metadata').default({}).notNull(),
+  },
+  (table) => [
+    index('idx_sequence_enrollments_status').on(table.status, table.nextStepDueAt),
+    index('idx_sequence_enrollments_person').on(table.personId),
+    index('idx_sequence_enrollments_seq').on(table.sequenceId),
+  ]
+);
