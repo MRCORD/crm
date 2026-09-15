@@ -25,6 +25,8 @@ import {
   products,
   opportunityLineItems,
   quotes,
+  webhookSubscriptions,
+  webhookDeliveries,
 } from './crm';
 import { mcpClients, mcpToolCallReceipts, mcpApprovals } from './mcp';
 import { interactionTranscripts, knowledgeDocuments } from './retrieval';
@@ -66,6 +68,7 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   assignmentRules: many(assignmentRules),
   products: many(products),
   quotes: many(quotes),
+  webhookSubscriptions: many(webhookSubscriptions),
 }));
 
 export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
@@ -319,5 +322,20 @@ export const quotesRelations = relations(quotes, ({ one }) => ({
   organization: one(organizations, {
     fields: [quotes.organizationId],
     references: [organizations.id],
+  }),
+}));
+
+export const webhookSubscriptionsRelations = relations(webhookSubscriptions, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [webhookSubscriptions.organizationId],
+    references: [organizations.id],
+  }),
+  deliveries: many(webhookDeliveries),
+}));
+
+export const webhookDeliveriesRelations = relations(webhookDeliveries, ({ one }) => ({
+  subscription: one(webhookSubscriptions, {
+    fields: [webhookDeliveries.subscriptionId],
+    references: [webhookSubscriptions.id],
   }),
 }));

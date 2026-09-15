@@ -58,6 +58,13 @@ import {
   updateQuoteStatus,
   getOpportunityQuotes,
 } from '../lib/cpq';
+import {
+  createWebhookSubscription,
+  listWebhookSubscriptions,
+  deleteWebhookSubscription,
+  dispatchWebhookEvent,
+  listWebhookDeliveries,
+} from '../lib/webhooks';
 
 /**
  * Tool Schemas for Model Context Protocol
@@ -560,6 +567,52 @@ export const crmToolSchemas = {
     description: 'Retrieve configured line items and all generated quotes for an opportunity.',
     parameters: z.object({
       opportunityId: z.string().uuid().describe('The UUID of the opportunity'),
+    }),
+  },
+
+  // 47. Create Webhook Subscription
+  createWebhookSubscription: {
+    description: 'Subscribe an external endpoint URL to receive authenticated HTTP POST webhook notifications on CRM lifecycle events.',
+    parameters: z.object({
+      name: z.string().describe("Subscription name, e.g. 'Zapier Deal Won Webhook'"),
+      targetUrl: z.string().url().describe('HTTPS endpoint to receive webhook payloads'),
+      eventTypes: z.array(z.string()).default(['*']).optional().describe("Events to listen for, e.g. ['opportunity.stage_changed', 'company.created'] or ['*']"),
+      secret: z.string().optional().describe('Optional HMAC secret; auto-generated with whsec_ prefix if omitted'),
+    }),
+  },
+
+  // 48. List Webhook Subscriptions
+  listWebhookSubscriptions: {
+    description: 'List all active outbound webhook subscriptions.',
+    parameters: z.object({
+      organizationId: z.string().optional(),
+    }),
+  },
+
+  // 49. Delete Webhook Subscription
+  deleteWebhookSubscription: {
+    description: 'Delete an outbound webhook subscription by ID.',
+    parameters: z.object({
+      subscriptionId: z.string().uuid().describe('UUID of the subscription to delete'),
+    }),
+  },
+
+  // 50. List Webhook Deliveries
+  listWebhookDeliveries: {
+    description: 'Inspect outbound webhook delivery logs, HTTP status codes, and error traces.',
+    parameters: z.object({
+      subscriptionId: z.string().uuid().optional(),
+      status: z.enum(['PENDING', 'DELIVERED', 'FAILED']).optional(),
+      limit: z.number().int().min(1).max(200).default(50).optional(),
+    }),
+  },
+
+  // 51. Dispatch Webhook Event
+  dispatchWebhookEvent: {
+    description: 'Broadcast an outbound webhook notification event to all matching subscribers.',
+    parameters: z.object({
+      eventType: z.string().describe("Event name, e.g. 'opportunity.stage_changed', 'company.created', 'test.ping'"),
+      payload: z.record(z.unknown()).describe('Arbitrary JSON data envelope to send in the webhook'),
     }),
   },
 };
@@ -1308,5 +1361,42 @@ export const crmToolHandlers = {
   async getOpportunityQuotes({ opportunityId }: { opportunityId: string }) {
     const result = await getOpportunityQuotes(opportunityId);
     return result;
+  },
+
+  async createWebhookSubscription(input: {
+    name: string;
+    targetUrl: string;
+    eventTypes?: string[];
+    secret?: string;
+  }) {
+    const sub = await createWebhookSubscription(input);
+    return { success: true, subscription: sub };
+  },
+
+  async listWebhookSubscriptions(options?: { organizationId?: string }) {
+    const subs = await listWebhookSubscriptions(options?.organizationId);
+    return { count: subs.length, subscriptions: subs };
+  },
+
+  async deleteWebhookSubscription({ subscriptionId }: { subscriptionId: string }) {
+    const deleted = await deleteWebhookSubscription(subscriptionId);
+    return { success: true, deletedSubscription: deleted };
+  },
+
+  async listWebhookDeliveries(options?: {
+    subscriptionId?: string;
+    status?: string;
+    limit?: number;
+  }) {
+    const deliveries = await listWebhookDeliveries(options);
+    return { count: deliveries.length, deliveries };
+  },
+
+  async dispatchWebhookEvent(input: {
+    eventType: string;
+    payload: Record<string, unknown>;
+  }) {
+    const result = await dispatchWebhookEvent(input);
+    return { success: true, ...result };
   },
 };

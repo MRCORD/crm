@@ -576,6 +576,61 @@ export function createCrmMcpServer() {
     }
   );
 
+  server.tool(
+    'crm_create_webhook_subscription',
+    crmToolSchemas.createWebhookSubscription.description,
+    crmToolSchemas.createWebhookSubscription.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_create_webhook_subscription', args, undefined, undefined, () =>
+        crmToolHandlers.createWebhookSubscription(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_list_webhook_subscriptions',
+    crmToolSchemas.listWebhookSubscriptions.description,
+    crmToolSchemas.listWebhookSubscriptions.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_list_webhook_subscriptions', args, undefined, undefined, () =>
+        crmToolHandlers.listWebhookSubscriptions(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_delete_webhook_subscription',
+    crmToolSchemas.deleteWebhookSubscription.description,
+    crmToolSchemas.deleteWebhookSubscription.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_delete_webhook_subscription', args, undefined, args.subscriptionId, () =>
+        crmToolHandlers.deleteWebhookSubscription(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_list_webhook_deliveries',
+    crmToolSchemas.listWebhookDeliveries.description,
+    crmToolSchemas.listWebhookDeliveries.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_list_webhook_deliveries', args, undefined, args.subscriptionId, () =>
+        crmToolHandlers.listWebhookDeliveries(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_dispatch_webhook_event',
+    crmToolSchemas.dispatchWebhookEvent.description,
+    crmToolSchemas.dispatchWebhookEvent.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_dispatch_webhook_event', args, undefined, undefined, () =>
+        crmToolHandlers.dispatchWebhookEvent(args)
+      );
+    }
+  );
+
   // ============================================================================
   // REGISTER MCP RESOURCES
   // ============================================================================
