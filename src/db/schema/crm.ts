@@ -33,13 +33,17 @@ export const companies = crmSchema.table('companies', {
   // Account owner (Account Manager / CSM responsible for this account)
   ownerId: text('owner_id').references(() => users.id, { onDelete: 'set null' }),
 
+  // Account Hierarchy: Self-referencing parent company (subsidiary / corporate tree)
+  parentCompanyId: uuid('parent_company_id').references((): any => companies.id, { onDelete: 'set null' }),
   // Full-Text Search Vector placeholder
   searchVector: text('search_vector'),
   position: doublePrecision('position').default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
-});
+}, (table) => [
+  index('idx_companies_parent').on(table.parentCompanyId),
+]);
 
 // ============================================================================
 // 2. PEOPLE (CONTACTS / LEADS)

@@ -43,6 +43,13 @@
       "when": 1789500928222,
       "tag": "0005_outgoing_black_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789501331102,
+      "tag": "0006_rare_changeling",
+      "breakpoints": true
     }
   ]
 }

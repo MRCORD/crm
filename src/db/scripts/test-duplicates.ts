@@ -96,7 +96,7 @@ async function main() {
     approved: true,
   });
   console.log(`✓ Merge executed successfully: status = "${mergeResult.status}"`);
-  console.log(`  Re-pointed counts:`, mergeResult.rePointedCounts);
+  console.log(`  Re-pointed counts:`, (mergeResult as any).rePointedCounts);
 
   // 9. Verify re-pointed records and soft deletion
   console.log('\n9. Verifying database state after merge...');

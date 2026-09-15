@@ -1,0 +1,3 @@
+ALTER TABLE "crm"."companies" ADD COLUMN "parent_company_id" uuid;--> statement-breakpoint
+ALTER TABLE "crm"."companies" ADD CONSTRAINT "companies_parent_company_id_companies_id_fk" FOREIGN KEY ("parent_company_id") REFERENCES "crm"."companies"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "idx_companies_parent" ON "crm"."companies" USING btree ("parent_company_id");

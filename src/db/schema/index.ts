@@ -77,6 +77,14 @@ export const companiesRelations = relations(companies, ({ one, many }) => ({
     fields: [companies.ownerId],
     references: [users.id],
   }),
+  parentCompany: one(companies, {
+    fields: [companies.parentCompanyId],
+    references: [companies.id],
+    relationName: 'subsidiaries',
+  }),
+  subsidiaries: many(companies, {
+    relationName: 'subsidiaries',
+  }),
   people: many(people),
   opportunities: many(opportunities),
   noteTargets: many(noteTargets),
