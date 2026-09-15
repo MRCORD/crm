@@ -41,6 +41,8 @@ export const companies = crmSchema.table('companies', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  // Field/Record-Level Permissions: 'OPEN' (visible to all org members) | 'PRIVATE' (owner + admins only)
+  visibility: text('visibility').default('OPEN').notNull(),
 }, (table) => [
   index('idx_companies_parent').on(table.parentCompanyId),
 ]);
@@ -96,6 +98,8 @@ export const opportunities = crmSchema.table('opportunities', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  // Field/Record-Level Permissions: 'OPEN' | 'PRIVATE'
+  visibility: text('visibility').default('OPEN').notNull(),
 });
 
 // ============================================================================
@@ -563,5 +567,62 @@ export const webhookDeliveries = crmSchema.table(
   (table) => [
     index('idx_webhook_deliveries_sub').on(table.subscriptionId, table.status),
     index('idx_webhook_deliveries_created').on(table.createdAt),
+  ]
+);
+
+// ============================================================================
+// 17. REPORTING & DASHBOARDS
+// ============================================================================
+
+export const dashboards = crmSchema.table('dashboards', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  ownerId: text('owner_id').references(() => users.id, { onDelete: 'set null' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  isShared: boolean('is_shared').default(false).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const dashboardWidgets = crmSchema.table(
+  'dashboard_widgets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    dashboardId: uuid('dashboard_id').references(() => dashboards.id, { onDelete: 'cascade' }).notNull(),
+    widgetType: text('widget_type').notNull(), // 'PIPELINE_FUNNEL' | 'REP_PERFORMANCE' | 'DEAL_VELOCITY' | 'ENGAGEMENT' | 'NUMBER' | 'TABLE'
+    title: text('title').notNull(),
+    config: jsonb('config').default({}).notNull(), // widget-specific parameters
+    position: jsonb('position').default({}).notNull(), // { x, y, w, h } for UI grid layout
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_dashboard_widgets_dash').on(table.dashboardId),
+  ]
+);
+
+// ============================================================================
+// 18. FIELD-LEVEL PERMISSION CONFIGURATION
+// ============================================================================
+
+/**
+ * Per-role, per-entity field visibility and editability constraints.
+ * Used to mask sensitive columns (e.g. salary, revenue) from non-admin roles.
+ */
+export const fieldPermissions = crmSchema.table(
+  'field_permissions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    entityType: text('entity_type').notNull(), // 'companies' | 'opportunities' | 'people'
+    fieldName: text('field_name').notNull(), // column or customFields key
+    role: text('role').notNull(), // 'guest' | 'member' | 'admin'
+    canRead: boolean('can_read').default(true).notNull(),
+    canWrite: boolean('can_write').default(false).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_field_perms_role').on(table.entityType, table.role),
+    index('idx_field_perms_org').on(table.organizationId),
   ]
 );

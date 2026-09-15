@@ -27,6 +27,9 @@ import {
   quotes,
   webhookSubscriptions,
   webhookDeliveries,
+  dashboards,
+  dashboardWidgets,
+  fieldPermissions,
 } from './crm';
 import { mcpClients, mcpToolCallReceipts, mcpApprovals } from './mcp';
 import { interactionTranscripts, knowledgeDocuments } from './retrieval';
@@ -337,5 +340,31 @@ export const webhookDeliveriesRelations = relations(webhookDeliveries, ({ one })
   subscription: one(webhookSubscriptions, {
     fields: [webhookDeliveries.subscriptionId],
     references: [webhookSubscriptions.id],
+  }),
+}));
+
+export const dashboardsRelations = relations(dashboards, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [dashboards.organizationId],
+    references: [organizations.id],
+  }),
+  owner: one(users, {
+    fields: [dashboards.ownerId],
+    references: [users.id],
+  }),
+  widgets: many(dashboardWidgets),
+}));
+
+export const dashboardWidgetsRelations = relations(dashboardWidgets, ({ one }) => ({
+  dashboard: one(dashboards, {
+    fields: [dashboardWidgets.dashboardId],
+    references: [dashboards.id],
+  }),
+}));
+
+export const fieldPermissionsRelations = relations(fieldPermissions, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [fieldPermissions.organizationId],
+    references: [organizations.id],
   }),
 }));
