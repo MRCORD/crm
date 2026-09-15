@@ -15,6 +15,13 @@
       "when": 1789489055115,
       "tag": "0001_true_talisman",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789495064342,
+      "tag": "0002_known_omega_flight",
+      "breakpoints": true
     }
   ]
 }

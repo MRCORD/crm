@@ -1,5 +1,5 @@
 import { pgSchema, uuid, text, timestamp, numeric, integer, doublePrecision, boolean, jsonb } from 'drizzle-orm/pg-core';
-import { users } from './system';
+import { users, organizations } from './system';
 
 export const crmSchema = pgSchema('crm');
 
@@ -8,6 +8,7 @@ export const crmSchema = pgSchema('crm');
 // ============================================================================
 export const companies = crmSchema.table('companies', {
   id: uuid('id').primaryKey().defaultRandom(),
+  organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   domainName: text('domain_name'),
   industry: text('industry'),
@@ -70,6 +71,7 @@ export const people = crmSchema.table('people', {
 // ============================================================================
 export const opportunities = crmSchema.table('opportunities', {
   id: uuid('id').primaryKey().defaultRandom(),
+  organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
   companyId: uuid('company_id').references(() => companies.id, { onDelete: 'cascade' }).notNull(), // Polygres Graph Edge 2
   pointOfContactId: uuid('point_of_contact_id').references(() => people.id, { onDelete: 'set null' }), // Polygres Graph Edge 3
   ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null' }), // Account Executive who owns this deal
@@ -202,5 +204,41 @@ export const calendarEventTargets = crmSchema.table('calendar_event_targets', {
   companyId: uuid('company_id').references(() => companies.id, { onDelete: 'cascade' }),
   personId: uuid('person_id').references(() => people.id, { onDelete: 'cascade' }),
   opportunityId: uuid('opportunity_id').references(() => opportunities.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ============================================================================
+// 9. TAGS (Polymorphic Labels Across Any Object — Standard or Custom)
+// ============================================================================
+
+/**
+ * Tag definitions. Shared across all taggable entities so the same tag
+ * ("Hot Lead", "Enterprise", "Churn Risk") can be reused everywhere.
+ */
+export const tags = crmSchema.table('tags', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  color: text('color').default('gray'), // UI chip color: 'red', 'green', 'blue', 'gray', ...
+  category: text('category'), // optional grouping: 'priority', 'industry', 'lifecycle'
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * Polymorphic junction: attaches a tag to any record, standard or custom.
+ * `taggableType` is a discriminator ('company', 'person', 'opportunity', or a
+ * custom object's nameSingular); `taggableId` is that record's UUID.
+ *
+ * No physical FK on (taggableType, taggableId) — Postgres cannot enforce a
+ * foreign key across a dynamic set of tables. Application code validates the
+ * pair on write. This is the deliberate trade-off that lets tags work
+ * uniformly across standard objects AND runtime-created custom objects
+ * without a schema migration every time a new object type appears.
+ */
+export const taggables = crmSchema.table('taggables', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tagId: uuid('tag_id').references(() => tags.id, { onDelete: 'cascade' }).notNull(),
+  taggableType: text('taggable_type').notNull(), // 'company' | 'person' | 'opportunity' | <custom object nameSingular>
+  taggableId: uuid('taggable_id').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });

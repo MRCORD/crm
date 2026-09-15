@@ -38,6 +38,7 @@ pnpm mcp
 - [Production Database Schema Proposal](./docs/database-schema-proposal.md) — Complete DDL and table design specification for the 5 logical schemas (`system`, `crm`, `mcp`, `retrieval`, `ingest`).
 - [System Topology & Self-Hosting Guide](./docs/deployment-and-topology.md) — Physical infrastructure blueprint explaining the division between managed Polygres data storage, self-hosted Next.js application tier, and external Bring-Your-Own-Agent (BYOA) clients.
 - [Extending Fields & Creating Custom Objects](./docs/extending-fields-and-custom-objects.md) — Dual-layer customization guide detailing code-first Drizzle extensions vs. runtime no-code custom fields (JSONB + GIN) and dynamic custom objects with Polygres `registerJsonbPath` indexing.
+- [Teams (Organizations) & Tags](./docs/teams-and-tags.md) — Clerk Organizations for multi-team grouping (webhook-synced to `system.organizations`/`organization_members`) and a polymorphic tagging system (`crm.tags`/`taggables`) that labels any standard or custom CRM object, with 6 MCP tools verified end-to-end.
 - [Production Roadmap: The 6 Missing Pillars](./docs/production-roadmap-and-missing-pillars.md) — Operational blueprint detailing ambient ingestion (Recall.ai/Zoom), Slack HITL notifications, agent simulation/dry-run mode, analytical SQL views, and multi-channel outbound (Resend & WhatsApp).
 
 ## Technical & Operational Specifications

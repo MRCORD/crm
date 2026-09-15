@@ -2,19 +2,22 @@ import { headers } from 'next/headers';
 import { WebhookEvent } from '@clerk/nextjs/server';
 import { Webhook } from 'svix';
 import { db } from '@/db';
-import { users } from '@/db/schema';
+import { users, organizations, organizationMembers } from '@/db/schema';
 import { getCrmRole } from '@/lib/clerk';
 import { eq } from 'drizzle-orm';
 
 /**
  * POST /api/webhooks/clerk
  *
- * Syncs Clerk identity events into system.users so CRM FKs
- * (crm.opportunities.owner_id, crm.companies.owner_id, etc.) remain valid.
+ * Syncs Clerk identity and organization events into Postgres so CRM FKs
+ * (crm.opportunities.owner_id, crm.companies.organization_id, etc.) remain valid.
  *
  * Configure in Clerk Dashboard → Webhooks:
  *   URL: https://your-domain.com/api/webhooks/clerk
- *   Events: user.created, user.updated, user.deleted
+ *   Events: user.created, user.updated, user.deleted,
+ *           organization.created, organization.updated, organization.deleted,
+ *           organizationMembership.created, organizationMembership.updated,
+ *           organizationMembership.deleted
  */
 export async function POST(req: Request) {
   const secret = process.env.CLERK_WEBHOOK_SECRET;
@@ -40,15 +43,21 @@ export async function POST(req: Request) {
       'svix-id': svixId,
       'svix-timestamp': svixTimestamp,
       'svix-signature': svixSignature,
-    }) as WebhookEvent;
+    }) as unknown as WebhookEvent;
   } catch {
     return new Response('Invalid webhook signature', { status: 400 });
   }
 
   const { type, data } = event;
 
+  // ============================================================================
+  // USERS
+  // ============================================================================
   if (type === 'user.created' || type === 'user.updated') {
-    const clerkUser = data as {
+    // Clerk's WebhookEvent payload shape for user events; cast via unknown at
+    // this external boundary since UserJSON's structural type doesn't fully
+    // overlap with our narrowed field subset.
+    const clerkUser = data as unknown as {
       id: string;
       email_addresses: Array<{ email_address: string; primary: boolean }>;
       first_name: string | null;
@@ -84,6 +93,60 @@ export async function POST(req: Request) {
     await db.update(users)
       .set({ isActive: false, updatedAt: new Date() })
       .where(eq(users.id, id));
+  }
+
+  // ============================================================================
+  // ORGANIZATIONS (Teams)
+  // ============================================================================
+  if (type === 'organization.created' || type === 'organization.updated') {
+    const clerkOrg = data as {
+      id: string;
+      name: string;
+      slug: string | null;
+      image_url: string | null;
+    };
+
+    await db.insert(organizations).values({
+      id: clerkOrg.id,
+      name: clerkOrg.name,
+      slug: clerkOrg.slug ?? clerkOrg.id,
+      imageUrl: clerkOrg.image_url,
+    }).onConflictDoUpdate({
+      target: organizations.id,
+      set: { name: clerkOrg.name, slug: clerkOrg.slug ?? clerkOrg.id, imageUrl: clerkOrg.image_url, updatedAt: new Date() },
+    });
+  }
+
+  if (type === 'organization.deleted') {
+    const { id } = data as { id: string };
+    await db.delete(organizations).where(eq(organizations.id, id));
+  }
+
+  // ============================================================================
+  // ORGANIZATION MEMBERSHIPS (Team roster + role)
+  // ============================================================================
+  if (type === 'organizationMembership.created' || type === 'organizationMembership.updated') {
+    const membership = data as {
+      id: string;
+      organization: { id: string };
+      public_user_data: { user_id: string };
+      role: string; // 'org:admin' | 'org:member' | custom
+    };
+
+    await db.insert(organizationMembers).values({
+      id: membership.id,
+      organizationId: membership.organization.id,
+      userId: membership.public_user_data.user_id,
+      role: membership.role,
+    }).onConflictDoUpdate({
+      target: organizationMembers.id,
+      set: { role: membership.role },
+    });
+  }
+
+  if (type === 'organizationMembership.deleted') {
+    const { id } = data as { id: string };
+    await db.delete(organizationMembers).where(eq(organizationMembers.id, id));
   }
 
   return new Response('OK', { status: 200 });

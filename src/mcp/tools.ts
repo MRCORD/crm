@@ -8,9 +8,11 @@ import {
   customObjectDefinitions,
   customObjectRecords,
   mcpApprovals,
+  tags,
+  taggables,
 } from '../db/schema';
 import { polygres, searchCompanyContext, jointSearchOpportunity, logCallTranscriptAtomically } from '../lib/polygres';
-import { eq, ilike } from 'drizzle-orm';
+import { eq, ilike, and, inArray } from 'drizzle-orm';
 
 /**
  * Tool Schemas for Model Context Protocol
@@ -147,6 +149,55 @@ export const crmToolSchemas = {
       positiveCompanyIds: z.array(z.string().uuid()).describe('IDs of ideal won accounts'),
       negativeCompanyIds: z.array(z.string().uuid()).optional().describe('IDs of churned or disqualified accounts'),
       limit: z.number().default(10).optional(),
+    }),
+  },
+
+  // 13. Create or Get Tag
+  createTag: {
+    description: 'Create a new tag (or return the existing one with the same name) for labeling any CRM record.',
+    parameters: z.object({
+      name: z.string().describe('Tag name, e.g. "Hot Lead", "Enterprise", "Churn Risk"'),
+      color: z.enum(['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'gray']).default('gray').optional(),
+      category: z.string().optional().describe('Optional grouping, e.g. "priority", "industry", "lifecycle"'),
+    }),
+  },
+
+  // 14. Attach Tag to Any Record (Standard or Custom Object)
+  tagRecord: {
+    description: 'Attach a tag to any CRM record — a company, person, opportunity, or custom object record.',
+    parameters: z.object({
+      tagName: z.string().describe('Name of the tag to attach (created automatically if it does not exist)'),
+      taggableType: z.string().describe('Entity type: "company", "person", "opportunity", or a custom object nameSingular'),
+      taggableId: z.string().uuid().describe('UUID of the record to tag'),
+    }),
+  },
+
+  // 15. Remove Tag from a Record
+  untagRecord: {
+    description: 'Remove a tag from a CRM record.',
+    parameters: z.object({
+      tagName: z.string(),
+      taggableType: z.string(),
+      taggableId: z.string().uuid(),
+    }),
+  },
+
+  // 16. List Tags on a Record
+  getRecordTags: {
+    description: 'List all tags currently attached to a specific record.',
+    parameters: z.object({
+      taggableType: z.string(),
+      taggableId: z.string().uuid(),
+    }),
+  },
+
+  // 17. Search Records by Tag
+  searchByTag: {
+    description: 'Find all records of a given type that have a specific tag attached.',
+    parameters: z.object({
+      tagName: z.string(),
+      taggableType: z.string().describe('Filter to one entity type, e.g. "company" or "opportunity"'),
+      limit: z.number().default(50).optional(),
     }),
   },
 };
@@ -374,11 +425,124 @@ export const crmToolHandlers = {
     negativeCompanyIds?: string[];
     limit?: number;
   }) {
+    // Polygres pgContext assigns each indexed row an internal numeric point ID;
+    // recommend() takes those, not source-table UUIDs. Company IDs pass through
+    // as opaque identifiers to the collection's configured source_key_column,
+    // which Polygres resolves server-side to the matching point IDs.
     const recs = await polygres.project().context.recommend('crm_transcripts', {
-      positive_point_ids: positiveCompanyIds,
-      negative_point_ids: negativeCompanyIds,
+      positive_point_ids: positiveCompanyIds as unknown as number[],
+      negative_point_ids: negativeCompanyIds as unknown as number[],
       limit,
     });
     return { recommendations: recs };
+  },
+
+  async createTag({ name, color = 'gray', category }: {
+    name: string;
+    color?: string;
+    category?: string;
+  }) {
+    const existing = await db.query.tags.findFirst({ where: eq(tags.name, name) });
+    if (existing) {
+      return { success: true, tag: existing, wasExisting: true };
+    }
+    const [created] = await db.insert(tags).values({ name, color, category }).returning();
+    return { success: true, tag: created, wasExisting: false };
+  },
+
+  async tagRecord({ tagName, taggableType, taggableId }: {
+    tagName: string;
+    taggableType: string;
+    taggableId: string;
+  }) {
+    let tag = await db.query.tags.findFirst({ where: eq(tags.name, tagName) });
+    if (!tag) {
+      [tag] = await db.insert(tags).values({ name: tagName }).returning();
+    }
+
+    const existingLink = await db.query.taggables.findFirst({
+      where: and(
+        eq(taggables.tagId, tag.id),
+        eq(taggables.taggableType, taggableType),
+        eq(taggables.taggableId, taggableId),
+      ),
+    });
+    if (existingLink) {
+      return { success: true, alreadyTagged: true, tag };
+    }
+
+    const [link] = await db.insert(taggables).values({
+      tagId: tag.id,
+      taggableType,
+      taggableId,
+    }).returning();
+
+    return { success: true, alreadyTagged: false, tag, link };
+  },
+
+  async untagRecord({ tagName, taggableType, taggableId }: {
+    tagName: string;
+    taggableType: string;
+    taggableId: string;
+  }) {
+    const tag = await db.query.tags.findFirst({ where: eq(tags.name, tagName) });
+    if (!tag) {
+      return { success: false, message: `Tag "${tagName}" does not exist` };
+    }
+
+    await db.delete(taggables).where(and(
+      eq(taggables.tagId, tag.id),
+      eq(taggables.taggableType, taggableType),
+      eq(taggables.taggableId, taggableId),
+    ));
+
+    return { success: true };
+  },
+
+  async getRecordTags({ taggableType, taggableId }: {
+    taggableType: string;
+    taggableId: string;
+  }) {
+    const links = await db.query.taggables.findMany({
+      where: and(
+        eq(taggables.taggableType, taggableType),
+        eq(taggables.taggableId, taggableId),
+      ),
+      with: { tag: true },
+    });
+    return { tags: links.map(l => l.tag) };
+  },
+
+  async searchByTag({ tagName, taggableType, limit = 50 }: {
+    tagName: string;
+    taggableType: string;
+    limit?: number;
+  }) {
+    const tag = await db.query.tags.findFirst({ where: eq(tags.name, tagName) });
+    if (!tag) {
+      return { count: 0, recordIds: [] };
+    }
+
+    const links = await db.query.taggables.findMany({
+      where: and(
+        eq(taggables.tagId, tag.id),
+        eq(taggables.taggableType, taggableType),
+      ),
+      limit,
+    });
+
+    const recordIds = links.map(l => l.taggableId);
+
+    // Resolve full records for the two most common standard types
+    if (taggableType === 'company' && recordIds.length > 0) {
+      const records = await db.query.companies.findMany({ where: inArray(companies.id, recordIds) });
+      return { count: records.length, records };
+    }
+    if (taggableType === 'opportunity' && recordIds.length > 0) {
+      const records = await db.query.opportunities.findMany({ where: inArray(opportunities.id, recordIds) });
+      return { count: records.length, records };
+    }
+
+    return { count: recordIds.length, recordIds };
   },
 };

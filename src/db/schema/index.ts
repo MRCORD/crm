@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { users, apiKeys } from './system';
+import { users, apiKeys, organizations, organizationMembers } from './system';
 import {
   companies,
   people,
@@ -13,6 +13,8 @@ import {
   customFieldDefinitions,
   customObjectDefinitions,
   customObjectRecords,
+  tags,
+  taggables,
 } from './crm';
 import { mcpClients, mcpToolCallReceipts, mcpApprovals } from './mcp';
 import { interactionTranscripts, knowledgeDocuments } from './retrieval';
@@ -35,9 +37,33 @@ export const usersRelations = relations(users, ({ many }) => ({
   reviewedApprovals: many(mcpApprovals),
   ownedCompanies: many(companies),
   ownedOpportunities: many(opportunities),
+  organizationMemberships: many(organizationMembers),
+}));
+
+export const organizationsRelations = relations(organizations, ({ many }) => ({
+  members: many(organizationMembers),
+  companies: many(companies),
+  opportunities: many(opportunities),
+  tags: many(tags),
+  apiKeys: many(apiKeys),
+}));
+
+export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationMembers.organizationId],
+    references: [organizations.id],
+  }),
+  user: one(users, {
+    fields: [organizationMembers.userId],
+    references: [users.id],
+  }),
 }));
 
 export const companiesRelations = relations(companies, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [companies.organizationId],
+    references: [organizations.id],
+  }),
   owner: one(users, {
     fields: [companies.ownerId],
     references: [users.id],
@@ -63,6 +89,10 @@ export const peopleRelations = relations(people, ({ one, many }) => ({
 }));
 
 export const opportunitiesRelations = relations(opportunities, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [opportunities.organizationId],
+    references: [organizations.id],
+  }),
   company: one(companies, {
     fields: [opportunities.companyId],
     references: [companies.id],
@@ -77,6 +107,21 @@ export const opportunitiesRelations = relations(opportunities, ({ one, many }) =
   }),
   noteTargets: many(noteTargets),
   transcripts: many(interactionTranscripts),
+}));
+
+export const tagsRelations = relations(tags, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [tags.organizationId],
+    references: [organizations.id],
+  }),
+  taggables: many(taggables),
+}));
+
+export const taggablesRelations = relations(taggables, ({ one }) => ({
+  tag: one(tags, {
+    fields: [taggables.tagId],
+    references: [tags.id],
+  }),
 }));
 
 export const customObjectDefinitionsRelations = relations(customObjectDefinitions, ({ many }) => ({

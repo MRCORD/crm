@@ -202,6 +202,61 @@ export function createCrmMcpServer() {
     }
   );
 
+  server.tool(
+    'crm_create_tag',
+    crmToolSchemas.createTag.description,
+    crmToolSchemas.createTag.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_create_tag', args, 'tags', undefined, () =>
+        crmToolHandlers.createTag(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_tag_record',
+    crmToolSchemas.tagRecord.description,
+    crmToolSchemas.tagRecord.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_tag_record', args, args.taggableType, args.taggableId, () =>
+        crmToolHandlers.tagRecord(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_untag_record',
+    crmToolSchemas.untagRecord.description,
+    crmToolSchemas.untagRecord.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_untag_record', args, args.taggableType, args.taggableId, () =>
+        crmToolHandlers.untagRecord(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_get_record_tags',
+    crmToolSchemas.getRecordTags.description,
+    crmToolSchemas.getRecordTags.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_get_record_tags', args, args.taggableType, args.taggableId, () =>
+        crmToolHandlers.getRecordTags(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_search_by_tag',
+    crmToolSchemas.searchByTag.description,
+    crmToolSchemas.searchByTag.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_search_by_tag', args, args.taggableType, undefined, () =>
+        crmToolHandlers.searchByTag(args)
+      );
+    }
+  );
+
   // ============================================================================
   // REGISTER MCP RESOURCES
   // ============================================================================
