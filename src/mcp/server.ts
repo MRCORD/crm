@@ -653,6 +653,33 @@ export function createCrmMcpServer() {
     }
   );
 
+  server.tool('crm_get_pipeline_funnel_report', crmToolSchemas.getPipelineFunnelReport.description, crmToolSchemas.getPipelineFunnelReport.parameters.shape,
+    async (args) => executeWithReceipt('crm_get_pipeline_funnel_report', args, undefined, undefined, () => crmToolHandlers.getPipelineFunnelReport()));
+
+  server.tool('crm_get_rep_performance_report', crmToolSchemas.getRepPerformanceReport.description, crmToolSchemas.getRepPerformanceReport.parameters.shape,
+    async (args) => executeWithReceipt('crm_get_rep_performance_report', args, undefined, undefined, () => crmToolHandlers.getRepPerformanceReport()));
+
+  server.tool('crm_get_deal_velocity_report', crmToolSchemas.getDealVelocityReport.description, crmToolSchemas.getDealVelocityReport.parameters.shape,
+    async (args) => executeWithReceipt('crm_get_deal_velocity_report', args, undefined, undefined, () => crmToolHandlers.getDealVelocityReport()));
+
+  server.tool('crm_get_engagement_report', crmToolSchemas.getEngagementReport.description, crmToolSchemas.getEngagementReport.parameters.shape,
+    async (args) => executeWithReceipt('crm_get_engagement_report', args, undefined, undefined, () => crmToolHandlers.getEngagementReport(args)));
+
+  server.tool('crm_create_dashboard', crmToolSchemas.createDashboard.description, crmToolSchemas.createDashboard.parameters.shape,
+    async (args) => executeWithReceipt('crm_create_dashboard', args, undefined, undefined, () => crmToolHandlers.createDashboard(args)));
+
+  server.tool('crm_execute_dashboard', crmToolSchemas.executeDashboard.description, crmToolSchemas.executeDashboard.parameters.shape,
+    async (args) => executeWithReceipt('crm_execute_dashboard', args, undefined, args.dashboardId, () => crmToolHandlers.executeDashboard(args)));
+
+  server.tool('crm_set_record_visibility', crmToolSchemas.setRecordVisibility.description, crmToolSchemas.setRecordVisibility.parameters.shape,
+    async (args) => executeWithReceipt('crm_set_record_visibility', args, args.entityType, args.recordId, () => crmToolHandlers.setRecordVisibility(args)));
+
+  server.tool('crm_set_field_permission', crmToolSchemas.setFieldPermission.description, crmToolSchemas.setFieldPermission.parameters.shape,
+    async (args) => executeWithReceipt('crm_set_field_permission', args, args.entityType, undefined, () => crmToolHandlers.setFieldPermission(args)));
+
+  server.tool('crm_list_field_permissions', crmToolSchemas.listFieldPermissions.description, crmToolSchemas.listFieldPermissions.parameters.shape,
+    async (args) => executeWithReceipt('crm_list_field_permissions', args, undefined, undefined, () => crmToolHandlers.listFieldPermissions(args)));
+
   // ============================================================================
   // REGISTER MCP RESOURCES
   // ============================================================================

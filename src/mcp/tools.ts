@@ -66,6 +66,21 @@ import {
   listWebhookDeliveries,
 } from '../lib/webhooks';
 import { importCSV, exportCSV } from '../lib/csv';
+import {
+  getPipelineFunnelReport,
+  getRepPerformanceReport,
+  getDealVelocityReport,
+  getEngagementReport,
+  createDashboard,
+  addDashboardWidget,
+  executeDashboard,
+} from '../lib/reporting';
+import {
+  setRecordVisibility,
+  setFieldPermission,
+  listFieldPermissions,
+  canReadRecord,
+} from '../lib/permissions';
 
 /**
  * Tool Schemas for Model Context Protocol
@@ -645,6 +660,81 @@ export const crmToolSchemas = {
       })).optional(),
       visibleFields: z.array(z.string()).optional().describe('Specific columns to include in the CSV export'),
       limit: z.number().int().min(1).max(2500).default(500).optional(),
+    }),
+  },
+
+  // 54. Pipeline Funnel Report
+  getPipelineFunnelReport: {
+    description: 'Aggregated pipeline funnel: opportunity count, total value, and avg health score by stage.',
+    parameters: z.object({}),
+  },
+
+  // 55. Rep Performance Report
+  getRepPerformanceReport: {
+    description: 'Leaderboard of reps by won deals, active pipeline, total value, and win rate percentage.',
+    parameters: z.object({}),
+  },
+
+  // 56. Deal Velocity Report
+  getDealVelocityReport: {
+    description: 'Average days to close won deals and current active deal age by stage.',
+    parameters: z.object({}),
+  },
+
+  // 57. Engagement Report
+  getEngagementReport: {
+    description: 'Top accounts or contacts by activity timeline event count.',
+    parameters: z.object({
+      entityType: z.enum(['company', 'opportunity', 'person']).default('company').optional(),
+      limit: z.number().int().min(1).max(100).default(20).optional(),
+    }),
+  },
+
+  // 58. Create Dashboard
+  createDashboard: {
+    description: 'Create a saved reporting dashboard with optional widget configuration.',
+    parameters: z.object({
+      name: z.string(),
+      description: z.string().optional(),
+      isShared: z.boolean().default(false).optional(),
+    }),
+  },
+
+  // 59. Execute Dashboard
+  executeDashboard: {
+    description: 'Run all widgets on a saved dashboard and return live report data.',
+    parameters: z.object({
+      dashboardId: z.string().uuid(),
+    }),
+  },
+
+  // 60. Set Record Visibility
+  setRecordVisibility: {
+    description: 'Set OPEN (all org members can view) or PRIVATE (owner + admins only) visibility on a company or opportunity.',
+    parameters: z.object({
+      entityType: z.enum(['companies', 'opportunities']),
+      recordId: z.string().uuid(),
+      visibility: z.enum(['OPEN', 'PRIVATE']),
+    }),
+  },
+
+  // 61. Set Field Permission
+  setFieldPermission: {
+    description: 'Configure whether a specific field is readable/writable by a role (guest, member, admin).',
+    parameters: z.object({
+      entityType: z.string(),
+      fieldName: z.string().describe('Column name or customFields key'),
+      role: z.enum(['guest', 'member', 'admin']),
+      canRead: z.boolean(),
+      canWrite: z.boolean(),
+    }),
+  },
+
+  // 62. List Field Permissions
+  listFieldPermissions: {
+    description: 'View configured field-level permission rules, optionally filtered by entity type.',
+    parameters: z.object({
+      entityType: z.string().optional(),
     }),
   },
 };
@@ -1456,5 +1546,58 @@ export const crmToolHandlers = {
       rowCount: csv ? csv.split('\n').length - 1 : 0,
       csv,
     };
+  },
+
+  async getPipelineFunnelReport() {
+    return await getPipelineFunnelReport();
+  },
+
+  async getRepPerformanceReport() {
+    return await getRepPerformanceReport();
+  },
+
+  async getDealVelocityReport() {
+    return await getDealVelocityReport();
+  },
+
+  async getEngagementReport({ entityType = 'company', limit = 20 }: {
+    entityType?: 'company' | 'opportunity' | 'person';
+    limit?: number;
+  }) {
+    return await getEngagementReport(entityType, limit);
+  },
+
+  async createDashboard(input: { name: string; description?: string; isShared?: boolean }) {
+    const dash = await createDashboard(input);
+    return { success: true, dashboard: dash };
+  },
+
+  async executeDashboard({ dashboardId }: { dashboardId: string }) {
+    return await executeDashboard(dashboardId);
+  },
+
+  async setRecordVisibility(input: {
+    entityType: 'companies' | 'opportunities';
+    recordId: string;
+    visibility: 'OPEN' | 'PRIVATE';
+  }) {
+    const updated = await setRecordVisibility(input);
+    return { success: true, record: updated };
+  },
+
+  async setFieldPermission(input: {
+    entityType: string;
+    fieldName: string;
+    role: 'guest' | 'member' | 'admin';
+    canRead: boolean;
+    canWrite: boolean;
+  }) {
+    const perm = await setFieldPermission(input);
+    return { success: true, permission: perm };
+  },
+
+  async listFieldPermissions({ entityType }: { entityType?: string }) {
+    const perms = await listFieldPermissions(entityType);
+    return { count: perms.length, permissions: perms };
   },
 };
