@@ -271,3 +271,37 @@ export const timelineActivities = crmSchema.table(
     index('idx_timeline_org').on(table.organizationId),
   ]
 );
+
+// ============================================================================
+// 11. SAVED VIEWS & SEGMENTATION (Table, Kanban, Calendar Configurations)
+// ============================================================================
+
+/**
+ * Saved views and segment definitions.
+ * Stores reusable filter, sort, column visibility, and grouping configurations
+ * for standard entities (companies, people, opportunities) or custom objects.
+ */
+export const views = crmSchema.table(
+  'views',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    ownerId: text('owner_id').references(() => users.id, { onDelete: 'cascade' }),
+    targetEntity: text('target_entity').notNull(), // 'companies' | 'opportunities' | 'people' | <custom_object_name>
+    name: text('name').notNull(), // e.g. "Q3 High Value Pipeline", "My Key Accounts"
+    viewType: text('view_type').default('TABLE').notNull(), // 'TABLE' | 'KANBAN' | 'CALENDAR'
+    filters: jsonb('filters').default([]).notNull(), // [{ field: 'stage', operator: 'eq', value: 'PROPOSAL' }]
+    sortBy: jsonb('sort_by').default([]).notNull(), // [{ field: 'amountMicros', direction: 'desc' }]
+    groupByField: text('group_by_field'), // for Kanban: 'stage', for calendar: 'closeDate'
+    visibleFields: text('visible_fields').array().default([]).notNull(), // list of columns to display
+    isShared: boolean('is_shared').default(false).notNull(), // true = visible to entire organization
+    position: doublePrecision('position').default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_views_target_entity').on(table.targetEntity),
+    index('idx_views_owner').on(table.ownerId),
+    index('idx_views_org').on(table.organizationId),
+  ]
+);

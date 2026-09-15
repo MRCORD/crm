@@ -279,6 +279,50 @@ export function createCrmMcpServer() {
     }
   );
 
+  server.tool(
+    'crm_create_view',
+    crmToolSchemas.createView.description,
+    crmToolSchemas.createView.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_create_view', args, args.targetEntity, undefined, () =>
+        crmToolHandlers.createView(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_list_views',
+    crmToolSchemas.listViews.description,
+    crmToolSchemas.listViews.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_list_views', args, args.targetEntity, undefined, () =>
+        crmToolHandlers.listViews(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_run_view',
+    crmToolSchemas.runView.description,
+    crmToolSchemas.runView.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_run_view', args, args.targetEntity, args.viewId, () =>
+        crmToolHandlers.runView(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_delete_view',
+    crmToolSchemas.deleteView.description,
+    crmToolSchemas.deleteView.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_delete_view', args, undefined, args.viewId, () =>
+        crmToolHandlers.deleteView(args)
+      );
+    }
+  );
+
   // ============================================================================
   // REGISTER MCP RESOURCES
   // ============================================================================
