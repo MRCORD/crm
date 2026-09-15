@@ -28,6 +28,10 @@ import {
   listMergeCandidates,
   dismissMergeCandidate,
 } from '../lib/duplicates';
+import {
+  getCompanyHierarchy,
+  setParentCompany,
+} from '../lib/hierarchy';
 
 /**
  * Tool Schemas for Model Context Protocol
@@ -338,6 +342,23 @@ export const crmToolSchemas = {
     description: 'Dismiss a detected duplicate candidate pair as a false positive.',
     parameters: z.object({
       candidateId: z.string().uuid().describe('UUID of the merge_candidates record'),
+    }),
+  },
+
+  // 28. Get Company Hierarchy & Rollup
+  getCompanyHierarchy: {
+    description: 'Retrieve the corporate hierarchy tree for an account, including root parent, ancestors, subsidiaries, and rolled-up active pipeline across all family entities.',
+    parameters: z.object({
+      companyId: z.string().uuid().describe('The UUID of the company to query'),
+    }),
+  },
+
+  // 29. Set Parent Company (Subsidiary linking)
+  setParentCompany: {
+    description: 'Link a company to its corporate parent entity (subsidiary relationship) or detach it by setting parentCompanyId to null. Enforces loop/cycle prevention.',
+    parameters: z.object({
+      companyId: z.string().uuid().describe('The UUID of the subsidiary company'),
+      parentCompanyId: z.string().uuid().nullable().describe('The UUID of the parent company, or null to detach'),
     }),
   },
 };
@@ -931,5 +952,24 @@ export const crmToolHandlers = {
   async dismissMergeCandidate({ candidateId }: { candidateId: string }) {
     const updated = await dismissMergeCandidate(candidateId);
     return { success: true, candidate: updated };
+  },
+
+  async getCompanyHierarchy({ companyId }: { companyId: string }) {
+    const hierarchy = await getCompanyHierarchy(companyId);
+    return hierarchy;
+  },
+
+  async setParentCompany({ companyId, parentCompanyId }: {
+    companyId: string;
+    parentCompanyId: string | null;
+  }) {
+    const updated = await setParentCompany({ companyId, parentCompanyId });
+    return {
+      success: true,
+      message: parentCompanyId
+        ? `Company ${companyId} linked to parent ${parentCompanyId}`
+        : `Company ${companyId} detached from parent`,
+      company: updated,
+    };
   },
 };

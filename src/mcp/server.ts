@@ -367,6 +367,28 @@ export function createCrmMcpServer() {
     }
   );
 
+  server.tool(
+    'crm_get_company_hierarchy',
+    crmToolSchemas.getCompanyHierarchy.description,
+    crmToolSchemas.getCompanyHierarchy.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_get_company_hierarchy', args, 'company', args.companyId, () =>
+        crmToolHandlers.getCompanyHierarchy(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_set_parent_company',
+    crmToolSchemas.setParentCompany.description,
+    crmToolSchemas.setParentCompany.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_set_parent_company', args, 'company', args.companyId, () =>
+        crmToolHandlers.setParentCompany(args)
+      );
+    }
+  );
+
   // ============================================================================
   // REGISTER MCP RESOURCES
   // ============================================================================
