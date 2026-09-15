@@ -515,3 +515,53 @@ export const quotes = crmSchema.table(
     index('idx_quotes_org').on(table.organizationId),
   ]
 );
+
+// ============================================================================
+// 16. OUTBOUND WEBHOOKS (Public Notification & Integration API)
+// ============================================================================
+
+/**
+ * External webhook subscriptions.
+ * Emits authenticated payloads when CRM lifecycle events occur.
+ */
+export const webhookSubscriptions = crmSchema.table(
+  'webhook_subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(), // e.g. "Zapier Pipeline Ingestion"
+    targetUrl: text('target_url').notNull(), // e.g. "https://hooks.zapier.com/..."
+    eventTypes: text('event_types').array().default(['*']).notNull(), // e.g. ['opportunity.stage_changed', 'company.created']
+    secret: text('secret').notNull(), // HMAC SHA-256 signing secret (whsec_...)
+    isActive: boolean('is_active').default(true).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_webhook_subs_org').on(table.organizationId),
+  ]
+);
+
+/**
+ * Outbound webhook delivery log and audit trail.
+ */
+export const webhookDeliveries = crmSchema.table(
+  'webhook_deliveries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    subscriptionId: uuid('subscription_id').references(() => webhookSubscriptions.id, { onDelete: 'cascade' }).notNull(),
+    eventType: text('event_type').notNull(),
+    payload: jsonb('payload').notNull(),
+    status: text('status').default('PENDING').notNull(), // 'PENDING' | 'DELIVERED' | 'FAILED'
+    responseStatusCode: integer('response_status_code'),
+    responseBody: text('response_body'),
+    attempts: integer('attempts').default(1).notNull(),
+    errorMessage: text('error_message'),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_webhook_deliveries_sub').on(table.subscriptionId, table.status),
+    index('idx_webhook_deliveries_created').on(table.createdAt),
+  ]
+);
