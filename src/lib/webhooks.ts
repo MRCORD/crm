@@ -137,7 +137,7 @@ export async function dispatchWebhookEvent(options: {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': 'mysios-crm-webhooks/1.0',
+          'User-Agent': 'agentic-crm-webhooks/1.0',
           'X-CRM-Event': eventType,
           'X-CRM-Delivery-Id': delivery.id,
           'X-CRM-Timestamp': timestamp,

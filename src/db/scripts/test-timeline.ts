@@ -28,7 +28,7 @@ async function main() {
     actorSource: 'AGENT',
     actorName: 'Apollo Outbound Agent',
     properties: {
-      subject: 'Intro to mysios CRM',
+      subject: 'Intro to Agentic CRM',
       touchpointNumber: 1,
       recipientEmail: 'founder@timelinetest.ai',
     },

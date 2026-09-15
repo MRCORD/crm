@@ -137,7 +137,7 @@ Add the CRM MCP server to `~/Library/Application Support/Claude/claude_desktop_c
   "mcpServers": {
     "my-crm": {
       "command": "tsx",
-      "args": ["/Users/oscar-rivas/Github/00ACTIVE/mysios/crm/src/mcp/stdio.ts"],
+      "args": ["/path/to/crm/src/mcp/stdio.ts"],
       "env": {
         "DATABASE_URL": "postgres://postgres:postgres@localhost:5432/crm",
         "POLYGRES_API_KEY": "poly_live_...",

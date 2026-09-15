@@ -5,7 +5,7 @@
  * and updates system.users.role in Polygres.
  *
  * Usage:
- *   pnpm auth:promote oscar@acme.com
+ *   pnpm auth:promote admin@example.com
  */
 import 'dotenv/config';
 import { createClerkClient } from '@clerk/nextjs/server';
