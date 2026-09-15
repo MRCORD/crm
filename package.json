@@ -1,0 +1,35 @@
+{
+  "name": "agentic-crm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "mcp": "tsx src/mcp/stdio.ts",
+    "db:init": "tsx src/db/init.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:push": "drizzle-kit push",
+    "db:seed": "tsx src/db/seed.ts",
+    "db:studio": "drizzle-kit studio",
+    "auth:promote": "tsx src/db/scripts/promote-admin.ts"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^7.9.2",
+    "@modelcontextprotocol/sdk": "^1.6.0",
+    "drizzle-orm": "^0.39.0",
+    "polygres-sdk-ts": "^0.4.1",
+    "postgres": "^3.4.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "dotenv": "^16.4.7",
+    "drizzle-kit": "^0.30.4",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.0"
+  }
+}
