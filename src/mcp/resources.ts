@@ -1,6 +1,7 @@
 import { db } from '../db';
 import { companies, opportunities, interactionTranscripts } from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
+import { getTimelineActivities, formatTimelineActivity } from '../lib/timeline';
 
 /**
  * Static and Dynamic MCP Resources
@@ -59,8 +60,24 @@ export async function readCrmResource(uri: string) {
     if (!company) {
       throw new Error(`Resource ${uri} not found`);
     }
+    const timeline = await getTimelineActivities({
+      entityType: 'company',
+      entityId: companyId,
+      limit: 25,
+    });
 
-    return JSON.stringify(company, null, 2);
+    return JSON.stringify({
+      ...company,
+      timeline: timeline.map(t => ({
+        id: t.id,
+        activityType: t.activityType,
+        actorSource: t.actorSource,
+        actorName: t.actorName,
+        properties: t.properties,
+        happenedAt: t.happenedAt,
+        summary: formatTimelineActivity(t),
+      })),
+    }, null, 2);
   }
 
   // 3. Transcript Detail

@@ -13,6 +13,7 @@ import {
 } from '../db/schema';
 import { polygres, searchCompanyContext, jointSearchOpportunity, logCallTranscriptAtomically } from '../lib/polygres';
 import { eq, ilike, and, inArray } from 'drizzle-orm';
+import { logTimelineActivity, getTimelineActivities, formatTimelineActivity } from '../lib/timeline';
 
 /**
  * Tool Schemas for Model Context Protocol
@@ -200,6 +201,30 @@ export const crmToolSchemas = {
       limit: z.number().default(50).optional(),
     }),
   },
+
+  // 18. Get Activity Timeline (Chronological audit feed for any entity)
+  getTimeline: {
+    description: 'Retrieve the unified chronological activity timeline for any CRM entity (company, person, opportunity, or custom object). Returns stage transitions, field changes, call transcripts, notes, tasks, and tags.',
+    parameters: z.object({
+      entityType: z.string().describe("Entity type: 'company', 'person', 'opportunity', or custom object name"),
+      entityId: z.string().uuid().describe('UUID of the target record'),
+      limit: z.number().min(1).max(100).default(20).optional().describe('Maximum number of activities to return (default 20)'),
+    }),
+  },
+
+  // 19. Log Timeline Activity (Record an activity explicitly)
+  logTimelineActivity: {
+    description: 'Explicitly record an event into a CRM entity\'s chronological activity timeline (e.g. outreach touchpoint, external note, status update).',
+    parameters: z.object({
+      entityType: z.string().describe("Entity type: 'company', 'person', 'opportunity', or custom object name"),
+      entityId: z.string().uuid().describe('UUID of the target record'),
+      activityType: z.string().describe("Event type: e.g. 'MEETING_HELD', 'EMAIL_SENT', 'NOTE_ADDED', 'STAGE_CHANGED', 'FIELD_UPDATED', 'EXTERNAL_EVENT'"),
+      actorSource: z.enum(['MANUAL', 'API', 'AGENT', 'SYSTEM']).default('AGENT').optional().describe('Origin of the action'),
+      actorName: z.string().optional().describe("Display name of the actor, e.g. 'Outbound Agent', 'Clerk'"),
+      actorUserId: z.string().optional().describe('Optional Clerk user ID if performed on behalf of a specific user'),
+      properties: z.record(z.unknown()).default({}).optional().describe('Arbitrary structured metadata about the event'),
+    }),
+  },
 };
 
 /**
@@ -244,6 +269,14 @@ export const crmToolHandlers = {
       annualRevenueAmountMicros: annualRevenueMicros ? annualRevenueMicros.toString() : null,
       customFields: customFields ?? {},
     }).returning();
+    await logTimelineActivity({
+      entityType: 'company',
+      entityId: created.id,
+      activityType: 'RECORD_CREATED',
+      actorSource: 'AGENT',
+      actorName: 'CRM MCP Server',
+      properties: { name, domainName, industry },
+    });
     return { success: true, company: created };
   },
 
@@ -279,6 +312,27 @@ export const crmToolHandlers = {
       })
       .where(eq(opportunities.id, opportunityId))
       .returning();
+
+    if (updated) {
+      await logTimelineActivity({
+        entityType: 'opportunity',
+        entityId: opportunityId,
+        activityType: 'STAGE_CHANGED',
+        actorSource: 'AGENT',
+        actorName: 'CRM MCP Server',
+        properties: { to: newStage, reason, healthScore },
+      });
+      if (updated.companyId) {
+        await logTimelineActivity({
+          entityType: 'company',
+          entityId: updated.companyId,
+          activityType: 'STAGE_CHANGED',
+          actorSource: 'AGENT',
+          actorName: 'CRM MCP Server',
+          properties: { opportunityId, opportunityName: updated.name, to: newStage, reason },
+        });
+      }
+    }
 
     return { success: true, opportunity: updated };
   },
@@ -353,6 +407,25 @@ export const crmToolHandlers = {
       data,
     }).returning();
 
+    await logTimelineActivity({
+      entityType: customObjectName,
+      entityId: created.id,
+      activityType: 'RECORD_CREATED',
+      actorSource: 'AGENT',
+      actorName: 'CRM MCP Server',
+      properties: { name, customObjectName, data },
+    });
+    if (companyId) {
+      await logTimelineActivity({
+        entityType: 'company',
+        entityId: companyId,
+        activityType: 'RECORD_CREATED',
+        actorSource: 'AGENT',
+        actorName: 'CRM MCP Server',
+        properties: { customRecordId: created.id, customObjectName, name },
+      });
+    }
+
     return { success: true, record: created };
   },
 
@@ -394,6 +467,20 @@ export const crmToolHandlers = {
     summaryEmbedding?: number[];
   }) {
     const result = await logCallTranscriptAtomically(data);
+    if (result.rowCommitted) {
+      await logTimelineActivity({
+        entityType: 'company',
+        entityId: data.companyId,
+        activityType: 'CALL_LOGGED',
+        actorSource: 'AGENT',
+        actorName: 'Ambient Ingestion Bot',
+        properties: {
+          channel: data.channel,
+          summary: data.summary,
+          opportunityId: data.opportunityId,
+        },
+      });
+    }
     return {
       success: true,
       rowCommitted: result.rowCommitted,
@@ -477,6 +564,15 @@ export const crmToolHandlers = {
       taggableId,
     }).returning();
 
+    await logTimelineActivity({
+      entityType: taggableType,
+      entityId: taggableId,
+      activityType: 'TAG_ADDED',
+      actorSource: 'AGENT',
+      actorName: 'CRM MCP Server',
+      properties: { tagId: tag.id, tagName: tag.name },
+    });
+
     return { success: true, alreadyTagged: false, tag, link };
   },
 
@@ -495,6 +591,15 @@ export const crmToolHandlers = {
       eq(taggables.taggableType, taggableType),
       eq(taggables.taggableId, taggableId),
     ));
+
+    await logTimelineActivity({
+      entityType: taggableType,
+      entityId: taggableId,
+      activityType: 'TAG_REMOVED',
+      actorSource: 'AGENT',
+      actorName: 'CRM MCP Server',
+      properties: { tagId: tag.id, tagName: tag.name },
+    });
 
     return { success: true };
   },
@@ -544,5 +649,53 @@ export const crmToolHandlers = {
     }
 
     return { count: recordIds.length, recordIds };
+  },
+
+  async getTimeline({ entityType, entityId, limit = 20 }: {
+    entityType: string;
+    entityId: string;
+    limit?: number;
+  }) {
+    const activities = await getTimelineActivities({ entityType, entityId, limit });
+    return {
+      entityType,
+      entityId,
+      totalCount: activities.length,
+      activities: activities.map(a => ({
+        id: a.id,
+        activityType: a.activityType,
+        actorSource: a.actorSource,
+        actorName: a.actorName,
+        actorUser: a.actorUser ? { id: a.actorUser.id, name: a.actorUser.name, email: a.actorUser.email } : null,
+        properties: a.properties,
+        happenedAt: a.happenedAt,
+        summary: formatTimelineActivity(a),
+      })),
+    };
+  },
+
+  async logTimelineActivity({ entityType, entityId, activityType, actorSource = 'AGENT', actorName, actorUserId, properties = {} }: {
+    entityType: string;
+    entityId: string;
+    activityType: string;
+    actorSource?: 'MANUAL' | 'API' | 'AGENT' | 'SYSTEM';
+    actorName?: string;
+    actorUserId?: string;
+    properties?: Record<string, unknown>;
+  }) {
+    const activity = await logTimelineActivity({
+      entityType,
+      entityId,
+      activityType,
+      actorSource,
+      actorName,
+      actorUserId,
+      properties,
+    });
+    return {
+      success: true,
+      activity,
+      summary: activity ? formatTimelineActivity(activity) : null,
+    };
   },
 };

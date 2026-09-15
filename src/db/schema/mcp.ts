@@ -10,7 +10,7 @@ export const mcpClients = mcpSchema.table('mcp_clients', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(), // e.g. 'Claude Desktop (CEO)', 'Cursor (Engineer)', 'LangGraph BDR Swarm'
   clientType: text('client_type').default('STDIO').notNull(), // 'STDIO', 'HTTP_SSE', 'REMOTE_AGENT'
-  apiKeyId: uuid('api_key_id').references(() => apiKeys.id, { onDelete: 'set null' }),
+  apiKeyId: text('api_key_id').references(() => apiKeys.id, { onDelete: 'set null' }),
   allowedTools: text('allowed_tools').array().default(['*']).notNull(), // ['*'] or specific tools
   isActive: boolean('is_active').default(true).notNull(),
   lastConnectedAt: timestamp('last_connected_at', { withTimezone: true }),
@@ -45,7 +45,7 @@ export const mcpApprovals = mcpSchema.table('mcp_approvals', {
   proposedText: text('proposed_text'),
   riskTier: integer('risk_tier').notNull(), // Tier 3 (Policy gated) or Tier 4 (Mandatory approval)
   status: text('status').default('PENDING').notNull(), // 'PENDING', 'APPROVED', 'REJECTED', 'MODIFIED'
-  assignedToUserId: uuid('assigned_to_user_id').references(() => users.id, { onDelete: 'set null' }),
+  assignedToUserId: text('assigned_to_user_id').references(() => users.id, { onDelete: 'set null' }),
   reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
   reviewComments: text('review_comments'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

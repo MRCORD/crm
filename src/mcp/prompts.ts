@@ -19,7 +19,7 @@ export const crmPrompts = {
             content: {
               type: 'text' as const,
               text: `Please generate a comprehensive 1-page pre-meeting briefing for company ID ${companyId}.
-Use the tool 'crm_get_company' to retrieve the company's contacts, open opportunities, and recent transcripts.
+Use 'crm_get_company' and 'crm_get_timeline' to retrieve the company's contacts, open opportunities, recent transcripts, and unified activity history.
 Then, use 'polygres_graph_search' to find unresolved objections or past commitments in the communication graph.
 Summarize:
 1. Executive Overview & Deal State

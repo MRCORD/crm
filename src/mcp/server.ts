@@ -257,6 +257,28 @@ export function createCrmMcpServer() {
     }
   );
 
+  server.tool(
+    'crm_get_timeline',
+    crmToolSchemas.getTimeline.description,
+    crmToolSchemas.getTimeline.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_get_timeline', args, args.entityType, args.entityId, () =>
+        crmToolHandlers.getTimeline(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_log_timeline_activity',
+    crmToolSchemas.logTimelineActivity.description,
+    crmToolSchemas.logTimelineActivity.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_log_timeline_activity', args, args.entityType, args.entityId, () =>
+        crmToolHandlers.logTimelineActivity(args)
+      );
+    }
+  );
+
   // ============================================================================
   // REGISTER MCP RESOURCES
   // ============================================================================

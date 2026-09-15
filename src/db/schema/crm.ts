@@ -1,4 +1,4 @@
-import { pgSchema, uuid, text, timestamp, numeric, integer, doublePrecision, boolean, jsonb } from 'drizzle-orm/pg-core';
+import { pgSchema, uuid, text, timestamp, numeric, integer, doublePrecision, boolean, jsonb, index } from 'drizzle-orm/pg-core';
 import { users, organizations } from './system';
 
 export const crmSchema = pgSchema('crm');
@@ -31,7 +31,7 @@ export const companies = crmSchema.table('companies', {
   customFields: jsonb('custom_fields').default({}).notNull(),
 
   // Account owner (Account Manager / CSM responsible for this account)
-  ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null' }),
+  ownerId: text('owner_id').references(() => users.id, { onDelete: 'set null' }),
 
   // Full-Text Search Vector placeholder
   searchVector: text('search_vector'),
@@ -74,7 +74,7 @@ export const opportunities = crmSchema.table('opportunities', {
   organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
   companyId: uuid('company_id').references(() => companies.id, { onDelete: 'cascade' }).notNull(), // Polygres Graph Edge 2
   pointOfContactId: uuid('point_of_contact_id').references(() => people.id, { onDelete: 'set null' }), // Polygres Graph Edge 3
-  ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null' }), // Account Executive who owns this deal
+  ownerId: text('owner_id').references(() => users.id, { onDelete: 'set null' }), // Account Executive who owns this deal
   name: text('name').notNull(),
   stage: text('stage').default('DISCOVERY').notNull(), // 'DISCOVERY', 'PROPOSAL', 'NEGOTIATION', 'CLOSED_WON', 'CLOSED_LOST'
   amountMicros: numeric('amount_micros').default('0').notNull(),
@@ -154,7 +154,7 @@ export const notes = crmSchema.table('notes', {
 
 export const tasks = crmSchema.table('tasks', {
   id: uuid('id').primaryKey().defaultRandom(),
-  assigneeId: uuid('assignee_id').references(() => users.id, { onDelete: 'set null' }),
+  assigneeId: text('assignee_id').references(() => users.id, { onDelete: 'set null' }),
   title: text('title').notNull(),
   body: text('body'),
   dueAt: timestamp('due_at', { withTimezone: true }),
@@ -242,3 +242,32 @@ export const taggables = crmSchema.table('taggables', {
   taggableId: uuid('taggable_id').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
+
+// ============================================================================
+// 10. ACTIVITY TIMELINE (Unified Audit Feed Across Any Record)
+// ============================================================================
+
+/**
+ * Append-only activity timeline for any CRM entity (company, person, opportunity,
+ * or custom object record). Captures stage changes, field updates, emails,
+ * calls, notes, tasks, and tag modifications in a single chronological feed.
+ */
+export const timelineActivities = crmSchema.table(
+  'timeline_activities',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    entityType: text('entity_type').notNull(), // 'company' | 'person' | 'opportunity' | <custom_object_name>
+    entityId: uuid('entity_id').notNull(),
+    activityType: text('activity_type').notNull(), // 'STAGE_CHANGED', 'FIELD_UPDATED', 'NOTE_ADDED', 'TASK_CREATED', 'CALL_LOGGED', 'TAG_ADDED', 'TAG_REMOVED', 'RECORD_CREATED'
+    actorSource: text('actor_source').default('SYSTEM').notNull(), // 'MANUAL' | 'API' | 'AGENT' | 'SYSTEM'
+    actorUserId: text('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    actorName: text('actor_name'), // e.g. "Claude (AI Agent)", "Oscar Rivas", "Recall.ai Webhook"
+    properties: jsonb('properties').default({}).notNull(), // structured payload: { from, to, noteTitle, tagName, ... }
+    happenedAt: timestamp('happened_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_timeline_entity').on(table.entityType, table.entityId, table.happenedAt),
+    index('idx_timeline_org').on(table.organizationId),
+  ]
+);

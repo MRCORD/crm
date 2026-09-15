@@ -15,6 +15,7 @@ import {
   customObjectRecords,
   tags,
   taggables,
+  timelineActivities,
 } from './crm';
 import { mcpClients, mcpToolCallReceipts, mcpApprovals } from './mcp';
 import { interactionTranscripts, knowledgeDocuments } from './retrieval';
@@ -38,6 +39,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   ownedCompanies: many(companies),
   ownedOpportunities: many(opportunities),
   organizationMemberships: many(organizationMembers),
+  timelineActivities: many(timelineActivities),
 }));
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
@@ -46,6 +48,7 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   opportunities: many(opportunities),
   tags: many(tags),
   apiKeys: many(apiKeys),
+  timelineActivities: many(timelineActivities),
 }));
 
 export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
@@ -178,5 +181,16 @@ export const interactionTranscriptsRelations = relations(interactionTranscripts,
   opportunity: one(opportunities, {
     fields: [interactionTranscripts.opportunityId],
     references: [opportunities.id],
+  }),
+}));
+
+export const timelineActivitiesRelations = relations(timelineActivities, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [timelineActivities.organizationId],
+    references: [organizations.id],
+  }),
+  actorUser: one(users, {
+    fields: [timelineActivities.actorUserId],
+    references: [users.id],
   }),
 }));
