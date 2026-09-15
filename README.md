@@ -8,12 +8,17 @@ A self-hosted, MCP-native CRM built on PostgreSQL (Polygres). Bring your own AI 
 
 | Layer | Technology | What It Does |
 | :--- | :--- | :--- |
-| **Database** | PostgreSQL via [Polygres](https://polygres.com) | 5 logical schemas, 41 tables, 12 migrations applied |
-| **ORM** | [Drizzle ORM](https://orm.drizzle.team) | Type-safe schema definitions + `db:generate` / `db:migrate` workflow |
-| **Auth** | [Clerk](https://clerk.com) | Sign-in, sessions, Organizations, webhook sync to `system.users` |
-| **MCP Server** | [`@modelcontextprotocol/sdk`](https://modelcontextprotocol.io) | 62 registered tools across all CRM domains, stdio transport |
-| **Hybrid Retrieval** | [Polygres SDK (`polygres-sdk-ts`)](https://polygres.com) | `graphFirst` (entity-scoped), `joint` tri-lane (Vector + Lexical + Graph), lookalike scoring |
-
+| **Database** | PostgreSQL via [Polygres](https://polygres.com) | 5 logical schemas, 41 tables, 12 migrations applied to live Polygres DB |
+| **DB Driver** | [`postgres` (postgres.js)](https://github.com/porsager/postgres) | Wire-protocol PostgreSQL client used by Drizzle ORM and migration runner |
+| **ORM & Migrations** | [Drizzle ORM](https://orm.drizzle.team) + [drizzle-kit](https://orm.drizzle.team/docs/kit-overview) | Type-safe schema definitions; `db:generate` → `db:migrate` workflow (never `db:push`) |
+| **Auth** | [Clerk](https://clerk.com) | Sign-in, sessions, Organizations (teams), roles, webhook sync to `system.users` |
+| **Webhook Verification** | [Svix](https://svix.com) | HMAC signature verification for Clerk webhook payloads |
+| **MCP Server** | [`@modelcontextprotocol/sdk`](https://modelcontextprotocol.io) | 62 registered tools, 3 resources, 2 prompts — stdio transport |
+| **Schema Validation** | [Zod](https://zod.dev) | Runtime type validation for all MCP tool parameters |
+| **Hybrid Retrieval** | [Polygres SDK (`polygres-sdk-ts`)](https://polygres.com) | `graphFirst` entity-scoped search, `joint` tri-lane (Vector + Lexical + Graph), lookalike scoring, atomic context reconciliation |
+| **App Framework** | [Next.js 16](https://nextjs.org) + [React 19](https://react.dev) | Hosts the Clerk webhook API route (`/api/webhooks/clerk`); UI layer for future frontend |
+| **Language & Runtime** | [TypeScript 5](https://www.typescriptlang.org) + [tsx](https://github.com/privatenumber/tsx) + [Node.js](https://nodejs.org) | Strict TypeScript throughout; `tsx` for zero-config TS script execution |
+| **Package Manager** | [pnpm](https://pnpm.io) | Workspace-aware, fast installs |
 ---
 
 ## Quickstart
