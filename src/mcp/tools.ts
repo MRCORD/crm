@@ -65,6 +65,7 @@ import {
   dispatchWebhookEvent,
   listWebhookDeliveries,
 } from '../lib/webhooks';
+import { importCSV, exportCSV } from '../lib/csv';
 
 /**
  * Tool Schemas for Model Context Protocol
@@ -613,6 +614,37 @@ export const crmToolSchemas = {
     parameters: z.object({
       eventType: z.string().describe("Event name, e.g. 'opportunity.stage_changed', 'company.created', 'test.ping'"),
       payload: z.record(z.unknown()).describe('Arbitrary JSON data envelope to send in the webhook'),
+    }),
+  },
+
+  // 52. Import CSV
+  importCSV: {
+    description: 'Import records into the CRM from CSV content. Validates required fields, checks for duplicates using the dedup engine, and inserts clean rows. Returns a per-row status report.',
+    parameters: z.object({
+      entityType: z.enum(['companies', 'people']).describe('Target entity to import into'),
+      csvContent: z.string().describe('Full CSV file content as a string, including header row'),
+      columnMap: z.record(z.string()).optional().describe("Optional column remapping: { 'CSV Column': 'entityFieldName' }"),
+      skipDuplicates: z.boolean().default(true).optional().describe('Whether to skip rows matching existing records (default true)'),
+    }),
+  },
+
+  // 53. Export CSV
+  exportCSV: {
+    description: 'Export CRM records to CSV. Supports exporting from a saved View ID or via ad-hoc filters. Returns the CSV content as a string.',
+    parameters: z.object({
+      entityType: z.enum(['companies', 'people', 'opportunities']).describe('Entity to export'),
+      viewId: z.string().uuid().optional().describe('UUID of a saved View to use for filtering/sorting'),
+      filters: z.array(z.object({
+        field: z.string(),
+        operator: z.enum(['eq', 'neq', 'contains', 'gt', 'gte', 'lt', 'lte', 'in', 'is_null', 'is_not_null']),
+        value: z.unknown().optional(),
+      })).optional(),
+      sortBy: z.array(z.object({
+        field: z.string(),
+        direction: z.enum(['asc', 'desc']),
+      })).optional(),
+      visibleFields: z.array(z.string()).optional().describe('Specific columns to include in the CSV export'),
+      limit: z.number().int().min(1).max(2500).default(500).optional(),
     }),
   },
 };
@@ -1398,5 +1430,31 @@ export const crmToolHandlers = {
   }) {
     const result = await dispatchWebhookEvent(input);
     return { success: true, ...result };
+  },
+
+  async importCSV(input: {
+    entityType: 'companies' | 'people';
+    csvContent: string;
+    columnMap?: Record<string, string>;
+    skipDuplicates?: boolean;
+  }) {
+    const result = await importCSV(input);
+    return result;
+  },
+
+  async exportCSV(input: {
+    entityType: 'companies' | 'people' | 'opportunities';
+    viewId?: string;
+    filters?: Array<{ field: string; operator: any; value?: unknown }>;
+    sortBy?: Array<{ field: string; direction: 'asc' | 'desc' }>;
+    visibleFields?: string[];
+    limit?: number;
+  }) {
+    const csv = await exportCSV(input);
+    return {
+      entityType: input.entityType,
+      rowCount: csv ? csv.split('\n').length - 1 : 0,
+      csv,
+    };
   },
 };
