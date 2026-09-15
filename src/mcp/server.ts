@@ -323,6 +323,50 @@ export function createCrmMcpServer() {
     }
   );
 
+  server.tool(
+    'crm_find_duplicates',
+    crmToolSchemas.findDuplicates.description,
+    crmToolSchemas.findDuplicates.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_find_duplicates', args, args.entityType, args.recordId, () =>
+        crmToolHandlers.findDuplicates(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_list_merge_candidates',
+    crmToolSchemas.listMergeCandidates.description,
+    crmToolSchemas.listMergeCandidates.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_list_merge_candidates', args, args.entityType, undefined, () =>
+        crmToolHandlers.listMergeCandidates(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_merge_records',
+    crmToolSchemas.mergeRecords.description,
+    crmToolSchemas.mergeRecords.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_merge_records', args, args.entityType, args.primaryRecordId, () =>
+        crmToolHandlers.mergeRecords(args)
+      );
+    }
+  );
+
+  server.tool(
+    'crm_dismiss_merge_candidate',
+    crmToolSchemas.dismissMergeCandidate.description,
+    crmToolSchemas.dismissMergeCandidate.parameters.shape,
+    async (args) => {
+      return executeWithReceipt('crm_dismiss_merge_candidate', args, undefined, args.candidateId, () =>
+        crmToolHandlers.dismissMergeCandidate(args)
+      );
+    }
+  );
+
   // ============================================================================
   // REGISTER MCP RESOURCES
   // ============================================================================
