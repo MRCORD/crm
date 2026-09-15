@@ -441,3 +441,77 @@ export const assignmentRules = crmSchema.table(
     index('idx_assignment_rules_org').on(table.organizationId),
   ]
 );
+
+// ============================================================================
+// 15. PRODUCTS, PRICE BOOKS & QUOTES (CPQ - Configure, Price, Quote)
+// ============================================================================
+
+/**
+ * Product catalog entries.
+ */
+export const products = crmSchema.table(
+  'products',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(), // e.g. "Enterprise Annual License"
+    sku: text('sku').unique(), // e.g. "ENT-ANN-001"
+    description: text('description'),
+    defaultPriceMicros: numeric('default_price_micros').notNull(), // standard price in USD micros ($1 = 1,000,000)
+    currency: text('currency').default('USD').notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_products_sku').on(table.sku),
+    index('idx_products_org').on(table.organizationId),
+  ]
+);
+
+/**
+ * Line items attached to an opportunity.
+ */
+export const opportunityLineItems = crmSchema.table(
+  'opportunity_line_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    opportunityId: uuid('opportunity_id').references(() => opportunities.id, { onDelete: 'cascade' }).notNull(),
+    productId: uuid('product_id').references(() => products.id, { onDelete: 'restrict' }).notNull(),
+    quantity: integer('quantity').default(1).notNull(),
+    unitPriceMicros: numeric('unit_price_micros').notNull(),
+    discountPercent: numeric('discount_percent', { precision: 5, scale: 2 }).default('0.00').notNull(),
+    totalPriceMicros: numeric('total_price_micros').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_line_items_opp').on(table.opportunityId),
+    index('idx_line_items_prod').on(table.productId),
+  ]
+);
+
+/**
+ * Formal quotes generated from opportunity line items.
+ */
+export const quotes = crmSchema.table(
+  'quotes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    opportunityId: uuid('opportunity_id').references(() => opportunities.id, { onDelete: 'cascade' }).notNull(),
+    quoteNumber: text('quote_number').notNull(), // e.g. "Q-2026-0042"
+    status: text('status').default('DRAFT').notNull(), // 'DRAFT' | 'SENT' | 'ACCEPTED' | 'EXPIRED' | 'REJECTED'
+    totalAmountMicros: numeric('total_amount_micros').notNull(),
+    currency: text('currency').default('USD').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    notes: text('notes'),
+    pdfUrl: text('pdf_url'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_quotes_opp').on(table.opportunityId),
+    index('idx_quotes_number').on(table.quoteNumber),
+    index('idx_quotes_org').on(table.organizationId),
+  ]
+);
