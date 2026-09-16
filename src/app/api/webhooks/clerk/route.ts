@@ -3,7 +3,7 @@ import { WebhookEvent } from '@clerk/nextjs/server';
 import { Webhook } from 'svix';
 import { getEdgeDb } from '@/db/edge';
 import { users, organizations, organizationMembers } from '@/db/schema';
-import { getCrmRole } from '@/lib/clerk';
+import { getCrmRole, clerkClient } from '@/lib/clerk';
 import { eq } from 'drizzle-orm';
 
 /**
@@ -18,7 +18,14 @@ import { eq } from 'drizzle-orm';
  *           organization.created, organization.updated, organization.deleted,
  *           organizationMembership.created, organizationMembership.updated,
  *           organizationMembership.deleted
+ *
+ * Access control: Clerk's native email-domain allowlist (auth_access_control)
+ * requires a paid plan. Enforced here instead — any account whose primary
+ * email is not @mysioslabs.com is immediately banned via the Backend API and
+ * never synced into system.users.
  */
+const ALLOWED_EMAIL_DOMAIN = 'mysioslabs.com';
+
 export async function POST(req: Request) {
   const secret = process.env.CLERK_WEBHOOK_SECRET;
   if (!secret) {
@@ -73,6 +80,16 @@ export async function POST(req: Request) {
     if (!primaryEmail) {
       return new Response('No email on user', { status: 400 });
     }
+
+    if (!primaryEmail.toLowerCase().endsWith(`@${ALLOWED_EMAIL_DOMAIN}`)) {
+      const client = await clerkClient();
+      await client.users.banUser(clerkUser.id);
+      return new Response(
+        `Banned: email domain not allowed (must be @${ALLOWED_EMAIL_DOMAIN})`,
+        { status: 403 }
+      );
+    }
+
 
     const name = [clerkUser.first_name, clerkUser.last_name].filter(Boolean).join(' ') || primaryEmail;
     const role = getCrmRole(clerkUser.public_metadata);
