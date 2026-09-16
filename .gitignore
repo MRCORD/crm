@@ -7,3 +7,6 @@ build/
 .next/
 .env.production
 *.tsbuildinfo
+.open-next/
+.wrangler/
+.dev.vars

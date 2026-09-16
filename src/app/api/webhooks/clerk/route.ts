@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { WebhookEvent } from '@clerk/nextjs/server';
 import { Webhook } from 'svix';
-import { db } from '@/db';
+import { getEdgeDb } from '@/db/edge';
 import { users, organizations, organizationMembers } from '@/db/schema';
 import { getCrmRole } from '@/lib/clerk';
 import { eq } from 'drizzle-orm';
@@ -36,6 +36,7 @@ export async function POST(req: Request) {
 
   const body = await req.text();
   const wh = new Webhook(secret);
+  const db = await getEdgeDb();
 
   let event: WebhookEvent;
   try {
