@@ -81,6 +81,7 @@ import {
   listFieldPermissions,
   canReadRecord,
 } from '../lib/permissions';
+import { createBrand, listBrands, assignBrand, getBrandPipelineSummary } from '../lib/brands';
 
 /**
  * Tool Schemas for Model Context Protocol
@@ -736,6 +737,42 @@ export const crmToolSchemas = {
     parameters: z.object({
       entityType: z.string().optional(),
     }),
+  },
+
+  // 63. Create Brand / DBA
+  createBrand: {
+    description: "Register a DBA (Doing Business As) brand under the parent C Corp. E.g. 'Habladoc', 'Fudis'. Brands scope deals, products, and sequences.",
+    parameters: z.object({
+      name: z.string().describe("Brand display name, e.g. 'Habladoc'"),
+      slug: z.string().describe("URL-safe identifier, e.g. 'habladoc'"),
+      description: z.string().optional(),
+      website: z.string().optional(),
+      color: z.string().optional().describe("UI chip color: 'blue', 'green', 'red', 'gray', etc."),
+    }),
+  },
+
+  // 64. List Brands / DBAs
+  listBrands: {
+    description: 'List all active brand / DBA entries with their slugs and colors.',
+    parameters: z.object({
+      activeOnly: z.boolean().default(true).optional(),
+    }),
+  },
+
+  // 65. Assign Brand to a Record
+  assignBrand: {
+    description: "Set the brand on an opportunity, product, sequence, or view. Pass brandId=null to clear.",
+    parameters: z.object({
+      entityType: z.enum(['opportunity', 'product', 'sequence', 'view']),
+      recordId: z.string().uuid(),
+      brandId: z.string().uuid().nullable().describe('Brand UUID, or null to clear'),
+    }),
+  },
+
+  // 66. Brand Pipeline Summary
+  getBrandPipelineSummary: {
+    description: 'Cross-brand pipeline rollup for the holding company view: active deals, pipeline amount, and won amount grouped by DBA.',
+    parameters: z.object({}),
   },
 };
 
@@ -1599,5 +1636,29 @@ export const crmToolHandlers = {
   async listFieldPermissions({ entityType }: { entityType?: string }) {
     const perms = await listFieldPermissions(entityType);
     return { count: perms.length, permissions: perms };
+  },
+
+  async createBrand(input: { name: string; slug: string; description?: string; website?: string; color?: string }) {
+    const brand = await createBrand(input);
+    return { success: true, brand };
+  },
+
+  async listBrands({ activeOnly = true }: { activeOnly?: boolean }) {
+    const brandList = await listBrands(activeOnly);
+    return { count: brandList.length, brands: brandList };
+  },
+
+  async assignBrand(input: { entityType: 'opportunity' | 'product' | 'sequence' | 'view'; recordId: string; brandId: string | null }) {
+    const updated = await assignBrand(input);
+    return { success: true, record: updated };
+  },
+
+  async getBrandPipelineSummary() {
+    const summary = await getBrandPipelineSummary();
+    return {
+      brands: summary,
+      totalActivePipelineMicros: summary.reduce((s, b) => s + BigInt(b.activePipelineMicros), BigInt(0)).toString(),
+      totalWonMicros: summary.reduce((s, b) => s + BigInt(b.wonAmountMicros), BigInt(0)).toString(),
+    };
   },
 };

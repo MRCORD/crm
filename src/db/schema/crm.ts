@@ -100,6 +100,8 @@ export const opportunities = crmSchema.table('opportunities', {
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
   // Field/Record-Level Permissions: 'OPEN' | 'PRIVATE'
   visibility: text('visibility').default('OPEN').notNull(),
+  // DBA / Brand: which Mysios Labs DBA owns this deal
+  brandId: uuid('brand_id').references((): any => brands.id, { onDelete: 'set null' }),
 });
 
 // ============================================================================
@@ -295,6 +297,7 @@ export const views = crmSchema.table(
     id: uuid('id').primaryKey().defaultRandom(),
     organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
     ownerId: text('owner_id').references(() => users.id, { onDelete: 'cascade' }),
+    brandId: uuid('brand_id').references((): any => brands.id, { onDelete: 'set null' }),
     targetEntity: text('target_entity').notNull(), // 'companies' | 'opportunities' | 'people' | <custom_object_name>
     name: text('name').notNull(), // e.g. "Q3 High Value Pipeline", "My Key Accounts"
     viewType: text('view_type').default('TABLE').notNull(), // 'TABLE' | 'KANBAN' | 'CALENDAR'
@@ -357,6 +360,7 @@ export const sequences = crmSchema.table(
     id: uuid('id').primaryKey().defaultRandom(),
     organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
     ownerId: text('owner_id').references(() => users.id, { onDelete: 'set null' }),
+    brandId: uuid('brand_id').references((): any => brands.id, { onDelete: 'set null' }),
     name: text('name').notNull(), // e.g. "Enterprise Cold Outbound - 7 Touch"
     description: text('description'),
     isActive: boolean('is_active').default(true).notNull(),
@@ -458,6 +462,7 @@ export const products = crmSchema.table(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     organizationId: text('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    brandId: uuid('brand_id').references((): any => brands.id, { onDelete: 'set null' }),
     name: text('name').notNull(), // e.g. "Enterprise Annual License"
     sku: text('sku').unique(), // e.g. "ENT-ANN-001"
     description: text('description'),
@@ -626,3 +631,33 @@ export const fieldPermissions = crmSchema.table(
     index('idx_field_perms_org').on(table.organizationId),
   ]
 );
+
+// ============================================================================
+// 19. BRANDS (DBAs — Doing Business As names under the parent C Corp)
+// ============================================================================
+
+/**
+ * Brand / DBA definitions for holding companies operating multiple products
+ * or go-to-market identities under one legal entity.
+ *
+ * Examples: Mysios Labs (C Corp) → Habladoc (DBA), Fudis (DBA).
+ *
+ * Placement rationale:
+ *   - companies:     NO brand_id — a single company can be a client of multiple DBAs
+ *   - opportunities: YES brand_id (mandatory) — every deal is under exactly one DBA
+ *   - products:      YES brand_id — each DBA has its own catalog
+ *   - sequences:     YES brand_id — outbound cadences are DBA-specific
+ *   - views:         YES brand_id — saved views scoped to one DBA's pipeline
+ */
+export const brands = crmSchema.table('brands', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(), // e.g. "Habladoc"
+  slug: text('slug').unique().notNull(), // e.g. "habladoc"
+  description: text('description'),
+  website: text('website'),
+  logoUrl: text('logo_url'),
+  color: text('color').default('gray').notNull(), // UI chip color
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
