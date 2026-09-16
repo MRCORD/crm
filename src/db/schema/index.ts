@@ -30,6 +30,7 @@ import {
   dashboards,
   dashboardWidgets,
   fieldPermissions,
+  brands,
 } from './crm';
 import { mcpClients, mcpToolCallReceipts, mcpApprovals } from './mcp';
 import { interactionTranscripts, knowledgeDocuments } from './retrieval';
@@ -367,4 +368,11 @@ export const fieldPermissionsRelations = relations(fieldPermissions, ({ one }) =
     fields: [fieldPermissions.organizationId],
     references: [organizations.id],
   }),
+}));
+
+export const brandsRelations = relations(brands, ({ many }) => ({
+  opportunities: many(opportunities),
+  products: many(products),
+  sequences: many(sequences),
+  views: many(views),
 }));

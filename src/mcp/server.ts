@@ -680,6 +680,18 @@ export function createCrmMcpServer() {
   server.tool('crm_list_field_permissions', crmToolSchemas.listFieldPermissions.description, crmToolSchemas.listFieldPermissions.parameters.shape,
     async (args) => executeWithReceipt('crm_list_field_permissions', args, undefined, undefined, () => crmToolHandlers.listFieldPermissions(args)));
 
+  server.tool('crm_create_brand', crmToolSchemas.createBrand.description, crmToolSchemas.createBrand.parameters.shape,
+    async (args) => executeWithReceipt('crm_create_brand', args, undefined, undefined, () => crmToolHandlers.createBrand(args)));
+
+  server.tool('crm_list_brands', crmToolSchemas.listBrands.description, crmToolSchemas.listBrands.parameters.shape,
+    async (args) => executeWithReceipt('crm_list_brands', args, undefined, undefined, () => crmToolHandlers.listBrands(args)));
+
+  server.tool('crm_assign_brand', crmToolSchemas.assignBrand.description, crmToolSchemas.assignBrand.parameters.shape,
+    async (args) => executeWithReceipt('crm_assign_brand', args, args.entityType, args.recordId, () => crmToolHandlers.assignBrand(args)));
+
+  server.tool('crm_get_brand_pipeline_summary', crmToolSchemas.getBrandPipelineSummary.description, crmToolSchemas.getBrandPipelineSummary.parameters.shape,
+    async (args) => executeWithReceipt('crm_get_brand_pipeline_summary', args, undefined, undefined, () => crmToolHandlers.getBrandPipelineSummary()));
+
   // ============================================================================
   // REGISTER MCP RESOURCES
   // ============================================================================
