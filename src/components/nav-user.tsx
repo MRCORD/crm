@@ -55,13 +55,13 @@ export function NavUser() {
               <AvatarImage src={avatar} alt={name} />
               <AvatarFallback className="rounded-lg">{initials(name)}</AvatarFallback>
             </Avatar>
-            <div className="grid flex-1 text-left text-sm leading-tight">
+            <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
               <span className="truncate font-medium">{name}</span>
               <span className="truncate text-xs text-foreground/70">
                 {email}
               </span>
             </div>
-            <EllipsisVerticalIcon className="ml-auto size-4" />
+            <EllipsisVerticalIcon className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="min-w-56"
