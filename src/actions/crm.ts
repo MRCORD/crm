@@ -10,8 +10,21 @@ import {
   opportunityLineItems,
   quotes,
   products,
+  sequences,
+  sequenceEnrollments,
+  assignmentRules,
+  mergeCandidates,
+  webhookSubscriptions,
+  webhookDeliveries,
+  mcpApprovals,
+  fieldPermissions,
+  customFieldDefinitions,
+  customObjectDefinitions,
+  customObjectRecords,
+  tags,
+  taggables,
 } from "@/db/schema"
-import { eq, ilike, desc, isNull, sql, and } from "drizzle-orm"
+import { eq, ilike, desc, isNull, sql, and, or, inArray } from "drizzle-orm"
 import { logTimelineActivity, getTimelineActivities } from "@/lib/timeline"
 import { getCompanyHierarchy, setParentCompany } from "@/lib/hierarchy"
 import {
@@ -20,9 +33,46 @@ import {
   generateQuote,
   getOpportunityQuotes,
   listProducts,
+  createProduct,
 } from "@/lib/cpq"
-import { getPipelineFunnelReport } from "@/lib/reporting"
-import { getBrandPipelineSummary, listBrands } from "@/lib/brands"
+import {
+  getPipelineFunnelReport,
+  getRepPerformanceReport,
+  getDealVelocityReport,
+  getEngagementReport,
+} from "@/lib/reporting"
+import { getBrandPipelineSummary, listBrands, createBrand } from "@/lib/brands"
+import {
+  listSequences,
+  createSequence,
+  enrollPersonInSequence,
+  advanceSequenceStep,
+  setEnrollmentStatus,
+  StepDefinition,
+} from "@/lib/sequences"
+import {
+  listAssignmentRules,
+  createAssignmentRule,
+  deleteAssignmentRule,
+  routeAndAssignRecord,
+  AssignmentStrategy,
+} from "@/lib/routing"
+import {
+  listMergeCandidates,
+  mergeRecords,
+  dismissMergeCandidate,
+} from "@/lib/duplicates"
+import {
+  listWebhookSubscriptions,
+  createWebhookSubscription,
+  deleteWebhookSubscription,
+  listWebhookDeliveries,
+} from "@/lib/webhooks"
+import { importCSV, exportCSV } from "@/lib/csv"
+import {
+  listFieldPermissions,
+  setFieldPermission,
+} from "@/lib/permissions"
 
 // ============================================================================
 // COMPANIES ACTIONS
@@ -76,7 +126,6 @@ export async function getCompanyDetail(id: string) {
 
   if (!company) return null
 
-  // Related opportunities
   const relatedOpportunities = await db
     .select({
       id: opportunities.id,
@@ -93,27 +142,22 @@ export async function getCompanyDetail(id: string) {
     .where(and(eq(opportunities.companyId, id), isNull(opportunities.deletedAt)))
     .orderBy(desc(opportunities.createdAt))
 
-  // Related people
   const relatedPeople = await db
     .select()
     .from(people)
     .where(and(eq(people.companyId, id), isNull(people.deletedAt)))
     .orderBy(desc(people.createdAt))
 
-  // Timeline activities
   const timeline = await getTimelineActivities({
     entityType: "company",
     entityId: id,
     limit: 25,
   })
 
-  // Hierarchy
   let hierarchy = null
   try {
     hierarchy = await getCompanyHierarchy(id)
-  } catch {
-    // Non-blocking if hierarchy query fails
-  }
+  } catch {}
 
   return {
     company,
@@ -244,7 +288,6 @@ export async function getOpportunityDetail(id: string) {
 
   if (!opp) return null
 
-  // Line items
   const lineItems = await db
     .select({
       id: opportunityLineItems.id,
@@ -260,16 +303,16 @@ export async function getOpportunityDetail(id: string) {
     .innerJoin(products, eq(opportunityLineItems.productId, products.id))
     .where(eq(opportunityLineItems.opportunityId, id))
     .orderBy(opportunityLineItems.createdAt)
-  // Quotes
+
   const quotesData = await getOpportunityQuotes(id)
   const quotesList = quotesData.quotes
-  // Timeline
+
   const timeline = await getTimelineActivities({
     entityType: "opportunity",
     entityId: id,
     limit: 25,
   })
-  // Available catalog products for add-line-item selector
+
   const catalogProducts = await listProducts({ isActive: true })
 
   return {
@@ -364,8 +407,34 @@ export async function createOpportunityAction(data: {
 }
 
 // ============================================================================
-// CPQ / LINE ITEMS / QUOTES ACTIONS
+// CPQ / PRODUCTS / LINE ITEMS / QUOTES
 // ============================================================================
+
+export async function getProductsAction() {
+  return await db
+    .select()
+    .from(products)
+    .where(eq(products.isActive, true))
+    .orderBy(desc(products.createdAt))
+}
+
+export async function createProductAction(data: {
+  name: string
+  sku?: string
+  description?: string
+  defaultPriceDollars: number
+  currency?: string
+}) {
+  const prod = await createProduct({
+    name: data.name,
+    sku: data.sku,
+    description: data.description,
+    defaultPriceMicros: Math.round(data.defaultPriceDollars * 1_000_000),
+    currency: data.currency || "USD",
+  })
+  revalidatePath("/products")
+  return prod
+}
 
 export async function addLineItemAction(data: {
   opportunityId: string
@@ -411,7 +480,365 @@ export async function generateQuoteAction(
 }
 
 // ============================================================================
-// DASHBOARD & BRAND ACTIONS
+// PEOPLE (CONTACTS) ACTIONS
+// ============================================================================
+
+export async function getPeopleAction(search?: string) {
+  return await db
+    .select({
+      id: people.id,
+      firstName: people.firstName,
+      lastName: people.lastName,
+      email: people.email,
+      phone: people.phone,
+      jobTitle: people.jobTitle,
+      linkedinUrl: people.linkedinUrl,
+      createdAt: people.createdAt,
+      companyId: people.companyId,
+      companyName: companies.name,
+    })
+    .from(people)
+    .leftJoin(companies, eq(people.companyId, companies.id))
+    .where(
+      and(
+        isNull(people.deletedAt),
+        search
+          ? or(
+              ilike(people.firstName, `%${search}%`),
+              ilike(people.lastName, `%${search}%`),
+              ilike(people.email, `%${search}%`)
+            )
+          : undefined
+      )
+    )
+    .orderBy(desc(people.createdAt))
+}
+
+export async function createPersonAction(data: {
+  firstName: string
+  lastName?: string
+  email: string
+  phone?: string
+  jobTitle?: string
+  companyId?: string
+}) {
+  const [created] = await db
+    .insert(people)
+    .values({
+      firstName: data.firstName,
+      lastName: data.lastName || null,
+      email: data.email,
+      phone: data.phone || null,
+      jobTitle: data.jobTitle || null,
+      companyId: data.companyId || null,
+    })
+    .returning()
+
+  await logTimelineActivity({
+    entityType: "person",
+    entityId: created.id,
+    activityType: "RECORD_CREATED",
+    actorSource: "MANUAL",
+    actorName: "Web UI",
+    properties: { name: `${data.firstName} ${data.lastName || ""}`.trim(), email: data.email },
+  })
+
+  revalidatePath("/people")
+  if (data.companyId) revalidatePath(`/companies/${data.companyId}`)
+  return created
+}
+
+// ============================================================================
+// SEQUENCES ACTIONS
+// ============================================================================
+
+export async function getSequencesAction() {
+  const list = await listSequences()
+  const enrollments = await db
+    .select({
+      id: sequenceEnrollments.id,
+      sequenceId: sequenceEnrollments.sequenceId,
+      personId: sequenceEnrollments.personId,
+      status: sequenceEnrollments.status,
+      currentStep: sequenceEnrollments.currentStep,
+      personEmail: people.email,
+      personName: sql<string>`concat(${people.firstName}, ' ', ${people.lastName})`,
+      sequenceName: sequences.name,
+      enrolledAt: sequenceEnrollments.enrolledAt,
+    })
+    .from(sequenceEnrollments)
+    .innerJoin(sequences, eq(sequenceEnrollments.sequenceId, sequences.id))
+    .innerJoin(people, eq(sequenceEnrollments.personId, people.id))
+    .orderBy(desc(sequenceEnrollments.enrolledAt))
+
+  return { sequences: list, enrollments }
+}
+
+export async function createSequenceAction(data: {
+  name: string
+  description?: string
+  steps: StepDefinition[]
+}) {
+  const seq = await createSequence({
+    name: data.name,
+    description: data.description,
+    steps: data.steps,
+  })
+  revalidatePath("/sequences")
+  return seq
+}
+
+export async function enrollInSequenceAction(sequenceId: string, personId: string) {
+  const result = await enrollPersonInSequence({ sequenceId, personId })
+  revalidatePath("/sequences")
+  return result
+}
+
+export async function advanceSequenceStepAction(enrollmentId: string) {
+  const result = await advanceSequenceStep({ enrollmentId })
+  revalidatePath("/sequences")
+  return result
+}
+
+// ============================================================================
+// ROUTING ACTIONS
+// ============================================================================
+
+export async function getRoutingRulesAction() {
+  return await listAssignmentRules()
+}
+
+export async function createRoutingRuleAction(data: {
+  name: string
+  targetEntity: "companies" | "people" | "opportunities"
+  strategy: AssignmentStrategy
+  assigneeUserIds: string[]
+  priority?: number
+  conditions?: any[]
+}) {
+  const rule = await createAssignmentRule({
+    name: data.name,
+    targetEntity: data.targetEntity,
+    assignmentStrategy: data.strategy,
+    candidateUserIds: data.assigneeUserIds,
+    conditions: (data.conditions || []) as any,
+    priority: data.priority,
+  })
+  revalidatePath("/routing")
+  return rule
+}
+
+export async function deleteRoutingRuleAction(ruleId: string) {
+  await deleteAssignmentRule(ruleId)
+  revalidatePath("/routing")
+}
+
+// ============================================================================
+// DUPLICATES ACTIONS
+// ============================================================================
+
+export async function getDuplicatesAction() {
+  return await listMergeCandidates({})
+}
+
+export async function mergeRecordsAction(data: {
+  candidateId?: string
+  entityType: "company" | "person"
+  primaryRecordId: string
+  secondaryRecordId: string
+}) {
+  const result = await mergeRecords({
+    entityType: data.entityType,
+    primaryRecordId: data.primaryRecordId,
+    duplicateRecordId: data.secondaryRecordId,
+  })
+  if (data.candidateId) {
+    await dismissMergeCandidate(data.candidateId)
+  }
+  revalidatePath("/duplicates")
+  return result
+}
+
+export async function dismissCandidateAction(candidateId: string) {
+  await dismissMergeCandidate(candidateId)
+  revalidatePath("/duplicates")
+}
+
+// ============================================================================
+// BRANDS ACTIONS
+// ============================================================================
+
+export async function getBrandsPageData() {
+  const brandsList = await listBrands(false)
+  const summary = await getBrandPipelineSummary()
+  return { brands: brandsList, summary }
+}
+
+export async function createBrandAction(data: {
+  name: string
+  slug: string
+  description?: string
+  color?: string
+}) {
+  const created = await createBrand({
+    name: data.name,
+    slug: data.slug,
+    description: data.description,
+    color: data.color || "#06b6d4",
+  })
+  revalidatePath("/brands")
+  revalidatePath("/")
+  return created
+}
+
+// ============================================================================
+// WEBHOOKS ACTIONS
+// ============================================================================
+
+export async function getWebhooksPageData() {
+  const subscriptions = await listWebhookSubscriptions()
+  const deliveries = await listWebhookDeliveries({ limit: 50 })
+  return { subscriptions, deliveries }
+}
+
+export async function createWebhookAction(data: {
+  name: string
+  targetUrl: string
+  eventTypes: string[]
+  description?: string
+}) {
+  const sub = await createWebhookSubscription({
+    name: data.name,
+    targetUrl: data.targetUrl,
+    eventTypes: data.eventTypes,
+  })
+  revalidatePath("/webhooks")
+  return sub
+}
+
+export async function deleteWebhookAction(subscriptionId: string) {
+  await deleteWebhookSubscription(subscriptionId)
+  revalidatePath("/webhooks")
+}
+
+// ============================================================================
+// IMPORT / EXPORT ACTIONS
+// ============================================================================
+
+export async function exportCsvAction(entityType: "companies" | "people" | "opportunities") {
+  return await exportCSV({ entityType })
+}
+
+export async function importCsvAction(
+  entityType: "companies" | "people" | "opportunities",
+  csvString: string
+) {
+  const result = await importCSV({ entityType, csvContent: csvString })
+  revalidatePath(`/${entityType}`)
+  return result
+}
+
+// ============================================================================
+// APPROVALS ACTIONS (Tier 4 HITL)
+// ============================================================================
+
+export async function getApprovalsAction() {
+  return await db
+    .select()
+    .from(mcpApprovals)
+    .orderBy(desc(mcpApprovals.createdAt))
+}
+
+export async function resolveApprovalAction(
+  approvalId: string,
+  status: "APPROVED" | "REJECTED",
+  resolvedBy: string
+) {
+  const [updated] = await db
+    .update(mcpApprovals)
+    .set({
+      status,
+      assignedToUserId: resolvedBy,
+      reviewedAt: new Date(),
+    })
+    .where(eq(mcpApprovals.id, approvalId))
+    .returning()
+
+  revalidatePath("/approvals")
+  return updated
+}
+
+// ============================================================================
+// REPORTS & DASHBOARDS ACTIONS
+// ============================================================================
+
+export async function getReportsData() {
+  const [funnel, repPerf, velocity, engagement] = await Promise.all([
+    getPipelineFunnelReport(),
+    getRepPerformanceReport(),
+    getDealVelocityReport(),
+    getEngagementReport(),
+  ])
+  return { funnel, repPerf, velocity, engagement }
+}
+
+// ============================================================================
+// SETTINGS ACTIONS (Permissions, Custom Fields, Custom Objects, Tags)
+// ============================================================================
+
+export async function getSettingsData() {
+  const [perms, customFields, customObjects, allTags] = await Promise.all([
+    listFieldPermissions(),
+    db.select().from(customFieldDefinitions).orderBy(desc(customFieldDefinitions.createdAt)),
+    db.select().from(customObjectDefinitions).orderBy(desc(customObjectDefinitions.createdAt)),
+    db.select().from(tags).orderBy(desc(tags.createdAt)),
+  ])
+  return { permissions: perms, customFields, customObjects, tags: allTags }
+}
+
+export async function setFieldPermissionAction(data: {
+  entityType: string
+  fieldName: string
+  role: "admin" | "member" | "guest"
+  canRead: boolean
+  canWrite: boolean
+}) {
+  const res = await setFieldPermission(data)
+  revalidatePath("/settings")
+  return res
+}
+
+export async function createTagAction(name: string, color?: string) {
+  const [created] = await db
+    .insert(tags)
+    .values({ name, color: color || "#6366f1" })
+    .returning()
+  revalidatePath("/settings")
+  return created
+}
+
+export async function createCustomFieldAction(data: {
+  targetEntity: string
+  name: string
+  label: string
+  fieldType: "TEXT" | "NUMBER" | "BOOLEAN" | "DATE" | "SELECT" | "MULTI_SELECT"
+}) {
+  const [created] = await db
+    .insert(customFieldDefinitions)
+    .values({
+      targetEntity: data.targetEntity,
+      name: data.name,
+      label: data.label,
+      fieldType: data.fieldType,
+      isSearchable: true,
+    })
+    .returning()
+  revalidatePath("/settings")
+  return created
+}
+
+// ============================================================================
+// DASHBOARD DATA
 // ============================================================================
 
 export async function getDashboardData() {
@@ -419,7 +846,6 @@ export async function getDashboardData() {
   const brandSummary = await getBrandPipelineSummary()
   const brandsList = await listBrands(true)
 
-  // Recent 5 opportunities
   const recentOpportunities = await db
     .select({
       id: opportunities.id,
@@ -439,7 +865,6 @@ export async function getDashboardData() {
     .orderBy(desc(opportunities.createdAt))
     .limit(5)
 
-  // Recent 5 companies
   const recentCompanies = await db
     .select({
       id: companies.id,
