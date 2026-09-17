@@ -19,13 +19,12 @@ import { eq } from 'drizzle-orm';
  *           organizationMembership.created, organizationMembership.updated,
  *           organizationMembership.deleted
  *
- * Access control: Clerk's native email-domain allowlist (auth_access_control)
- * requires a paid plan. Enforced here instead — any account whose primary
- * email is not @mysioslabs.com is immediately banned via the Backend API and
- * never synced into system.users.
+ * Access control: Email domain restriction is configurable via ALLOWED_EMAIL_DOMAIN.
+ * If set (e.g. "mysioslabs.com"), any account whose primary email is not from that
+ * domain is banned via the Backend API and never synced into system.users.
+ * If unset or empty, domain restriction is disabled (open sign-up).
  */
-const ALLOWED_EMAIL_DOMAIN = 'mysioslabs.com';
-
+const ALLOWED_EMAIL_DOMAIN = process.env.ALLOWED_EMAIL_DOMAIN || 'mysioslabs.com';
 export async function POST(req: Request) {
   const secret = process.env.CLERK_WEBHOOK_SECRET;
   if (!secret) {
