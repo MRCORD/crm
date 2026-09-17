@@ -8,8 +8,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: 'Mysios CRM',
-  description: 'Self-hosted, MCP-native CRM for Mysios Labs',
+  title: 'Agentic CRM',
+  description: 'Self-hosted, MCP-native CRM on PostgreSQL',
 };
 
 export default function RootLayout({

@@ -75,11 +75,11 @@ export function CreateBrandDialog() {
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-2">
                 <Label htmlFor="brand-name">Brand Name *</Label>
-                <Input id="brand-name" name="name" required placeholder="Habladoc" />
+                <Input id="brand-name" name="name" required placeholder="e.g. Acme Health" />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="brand-slug">Slug *</Label>
-                <Input id="brand-slug" name="slug" required placeholder="habladoc" />
+                <Input id="brand-slug" name="slug" required placeholder="acme-health" />
               </div>
             </div>
 
@@ -87,10 +87,9 @@ export function CreateBrandDialog() {
               <Label htmlFor="brand-color">Brand Accent Color</Label>
               <Input id="brand-color" name="color" type="color" defaultValue="#06b6d4" className="h-10 cursor-pointer p-1" />
             </div>
-
             <div className="grid gap-2">
               <Label htmlFor="brand-desc">Description</Label>
-              <Textarea id="brand-desc" name="description" placeholder="Telehealth and clinical workflow platform" />
+              <Textarea id="brand-desc" name="description" placeholder="Healthcare and clinical workflow platform" />
             </div>
           </div>
 

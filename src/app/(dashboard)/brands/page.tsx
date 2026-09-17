@@ -27,9 +27,8 @@ export default async function BrandsPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Brands &amp; DBAs</h1>
           <p className="text-sm text-muted-foreground">
-            Multi-brand holding company entities (Habladoc, Fudis, Mysios Labs).
+            Multi-brand holding company entities and subsidiary operating units.
           </p>
         </div>
         <div className="flex items-center gap-2">

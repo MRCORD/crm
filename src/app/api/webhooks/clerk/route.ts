@@ -20,11 +20,12 @@ import { eq } from 'drizzle-orm';
  *           organizationMembership.deleted
  *
  * Access control: Email domain restriction is configurable via ALLOWED_EMAIL_DOMAIN.
- * If set (e.g. "mysioslabs.com"), any account whose primary email is not from that
- * domain is banned via the Backend API and never synced into system.users.
+ * If set (e.g. "yourcompany.com"), any account whose primary email does not match
+ * is banned via the Backend API and never synced into system.users.
  * If unset or empty, domain restriction is disabled (open sign-up).
- */
-const ALLOWED_EMAIL_DOMAIN = process.env.ALLOWED_EMAIL_DOMAIN || 'mysioslabs.com';
+*/
+const ALLOWED_EMAIL_DOMAIN = process.env.ALLOWED_EMAIL_DOMAIN || null;
+
 export async function POST(req: Request) {
   const secret = process.env.CLERK_WEBHOOK_SECRET;
   if (!secret) {

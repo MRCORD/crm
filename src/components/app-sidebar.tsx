@@ -65,7 +65,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               render={<a href="/" />}
             >
               <Building2Icon className="size-5!" />
-              <span className="text-base font-semibold">Mysios CRM</span>
+              <span className="text-base font-semibold">Agentic CRM</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
