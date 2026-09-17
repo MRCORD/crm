@@ -8,33 +8,54 @@ import type { LucideIcon } from "lucide-react"
 import {
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-export function NavSecondary({
-  items,
-  ...props
+export interface NavItem {
+  title: string
+  url: string
+  icon?: LucideIcon
+}
+
+export interface NavSectionDef {
+  label?: string
+  items: NavItem[]
+}
+
+/**
+ * Renders one labeled (or unlabeled) group of sidebar links.
+ * `SidebarGroupLabel` auto-hides when the sidebar is collapsed to icon mode,
+ * and `tooltip` on each button surfaces the label on hover in that state.
+ */
+export function NavSection({
+  section,
+  className,
 }: {
-  items: {
-    title: string
-    url: string
-    icon: LucideIcon
-  }[]
-} & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
+  section: NavSectionDef
+  className?: string
+}) {
   const pathname = usePathname()
 
   return (
-    <SidebarGroup {...props}>
-      <SidebarGroupContent>
+    <SidebarGroup className={className}>
+      {section.label && <SidebarGroupLabel>{section.label}</SidebarGroupLabel>}
+      <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
-          {items.map((item) => {
+          {section.items.map((item) => {
             const isExternal = item.url.startsWith("http")
-            const isActive = !isExternal && pathname.startsWith(item.url)
+            const isActive = isExternal
+              ? false
+              : item.url === "/"
+                ? pathname === "/"
+                : pathname.startsWith(item.url)
+
             return (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
+                  tooltip={item.title}
                   isActive={isActive}
                   render={
                     isExternal ? (
@@ -44,7 +65,7 @@ export function NavSecondary({
                     )
                   }
                 >
-                  <item.icon />
+                  {item.icon ? <item.icon /> : null}
                   <span>{item.title}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>

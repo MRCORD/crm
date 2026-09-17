@@ -2,8 +2,7 @@
 
 import * as React from "react"
 
-import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
+import { NavSection, type NavSectionDef } from "@/components/nav-section"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
@@ -13,6 +12,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
 } from "@/components/ui/sidebar"
 import {
   LayoutDashboardIcon,
@@ -32,31 +32,61 @@ import {
   BadgeCheckIcon,
 } from "lucide-react"
 
-const data = {
-  navMain: [
-    { title: "Overview", url: "/", icon: LayoutDashboardIcon },
-    { title: "Companies", url: "/companies", icon: Building2Icon },
-    { title: "Opportunities", url: "/opportunities", icon: DollarSignIcon },
-    { title: "People", url: "/people", icon: UsersIcon },
-    { title: "Sequences", url: "/sequences", icon: MailIcon },
-    { title: "Lead Routing", url: "/routing", icon: RouteIcon },
-    { title: "Duplicates", url: "/duplicates", icon: GitMergeIcon },
-    { title: "Products", url: "/products", icon: PackageIcon },
-    { title: "Reports", url: "/reports", icon: ChartBarIcon },
-  ],
-  navSecondary: [
+// Top scrollable sections: the day-to-day work surfaces, grouped by function.
+const navSections: NavSectionDef[] = [
+  {
+    items: [{ title: "Overview", url: "/", icon: LayoutDashboardIcon }],
+  },
+  {
+    label: "Pipeline",
+    items: [
+      { title: "Companies", url: "/companies", icon: Building2Icon },
+      { title: "Opportunities", url: "/opportunities", icon: DollarSignIcon },
+      { title: "People", url: "/people", icon: UsersIcon },
+    ],
+  },
+  {
+    label: "Automation",
+    items: [
+      { title: "Sequences", url: "/sequences", icon: MailIcon },
+      { title: "Lead Routing", url: "/routing", icon: RouteIcon },
+    ],
+  },
+  {
+    label: "Revenue",
+    items: [
+      { title: "Products", url: "/products", icon: PackageIcon },
+      { title: "Reports", url: "/reports", icon: ChartBarIcon },
+    ],
+  },
+  {
+    label: "Data",
+    items: [
+      { title: "Duplicates", url: "/duplicates", icon: GitMergeIcon },
+      { title: "Import / Export", url: "/import-export", icon: UploadIcon },
+    ],
+  },
+]
+
+// Bottom-pinned: infrequent, ops/governance surfaces (mt-auto on the first
+// one pushes it and everything after it to the bottom of SidebarContent).
+const workspaceSection: NavSectionDef = {
+  label: "Workspace",
+  items: [
     { title: "Brands", url: "/brands", icon: BadgeCheckIcon },
     { title: "Webhooks", url: "/webhooks", icon: WebhookIcon },
-    { title: "Import / Export", url: "/import-export", icon: UploadIcon },
     { title: "Approvals", url: "/approvals", icon: ShieldCheckIcon },
     { title: "Settings", url: "/settings", icon: Settings2Icon },
-    { title: "Help", url: "https://github.com/MRCORD/crm", icon: CircleHelpIcon },
   ],
+}
+
+const helpSection: NavSectionDef = {
+  items: [{ title: "Help", url: "https://github.com/MRCORD/crm", icon: CircleHelpIcon }],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -65,18 +95,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               render={<a href="/" />}
             >
               <Building2Icon className="size-5!" />
-              <span className="text-base font-semibold">Agentic CRM</span>
+              <span className="text-base font-semibold group-data-[collapsible=icon]:hidden">
+                Agentic CRM
+              </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        {navSections.map((section, i) => (
+          <NavSection key={section.label ?? `section-${i}`} section={section} />
+        ))}
+        <NavSection section={workspaceSection} className="mt-auto" />
+        <NavSection section={helpSection} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   )
 }
