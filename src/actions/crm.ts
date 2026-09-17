@@ -410,11 +410,29 @@ export async function createOpportunityAction(data: {
 // CPQ / PRODUCTS / LINE ITEMS / QUOTES
 // ============================================================================
 
-export async function getProductsAction() {
+export async function getProductsAction(brandId?: string) {
   return await db
-    .select()
+    .select({
+      id: products.id,
+      name: products.name,
+      sku: products.sku,
+      description: products.description,
+      defaultPriceMicros: products.defaultPriceMicros,
+      currency: products.currency,
+      isActive: products.isActive,
+      createdAt: products.createdAt,
+      brandId: products.brandId,
+      brandName: brands.name,
+      brandColor: brands.color,
+    })
     .from(products)
-    .where(eq(products.isActive, true))
+    .leftJoin(brands, eq(products.brandId, brands.id))
+    .where(
+      and(
+        eq(products.isActive, true),
+        brandId ? eq(products.brandId, brandId) : undefined
+      )
+    )
     .orderBy(desc(products.createdAt))
 }
 
@@ -424,6 +442,7 @@ export async function createProductAction(data: {
   description?: string
   defaultPriceDollars: number
   currency?: string
+  brandId?: string
 }) {
   const prod = await createProduct({
     name: data.name,
@@ -431,6 +450,7 @@ export async function createProductAction(data: {
     description: data.description,
     defaultPriceMicros: Math.round(data.defaultPriceDollars * 1_000_000),
     currency: data.currency || "USD",
+    brandId: data.brandId || null,
   })
   revalidatePath("/products")
   return prod

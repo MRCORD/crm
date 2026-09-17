@@ -1,4 +1,5 @@
 import { getProductsAction } from "@/actions/crm"
+import { listBrands } from "@/lib/brands"
 import { formatMicros, formatDate } from "@/lib/utils"
 import { CreateProductDialog } from "@/components/products/create-product-dialog"
 import {
@@ -13,7 +14,10 @@ import { Badge } from "@/components/ui/badge"
 import { PackageIcon } from "lucide-react"
 
 export default async function ProductsPage() {
-  const productList = await getProductsAction()
+  const [productList, brandsList] = await Promise.all([
+    getProductsAction(),
+    listBrands(true),
+  ])
 
   return (
     <div className="flex flex-col gap-6">
@@ -22,11 +26,13 @@ export default async function ProductsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Products &amp; Services</h1>
           <p className="text-sm text-muted-foreground">
-            Catalog items, SKUs, and default pricing for CPQ line item quoting.
+            Catalog items, SKUs, and default pricing for CPQ line item quoting. Products can be scoped to a specific brand/DBA.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <CreateProductDialog />
+          <CreateProductDialog
+            brands={brandsList.map((b) => ({ id: b.id, name: b.name }))}
+          />
         </div>
       </div>
 
@@ -37,6 +43,7 @@ export default async function ProductsPage() {
             <TableRow>
               <TableHead>Product Name</TableHead>
               <TableHead>SKU</TableHead>
+              <TableHead>Brand</TableHead>
               <TableHead>Description</TableHead>
               <TableHead className="text-right">Default Price</TableHead>
               <TableHead className="text-center">Status</TableHead>
@@ -47,7 +54,7 @@ export default async function ProductsPage() {
             {productList.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="h-32 text-center text-muted-foreground"
                 >
                   <div className="flex flex-col items-center justify-center gap-2">
@@ -69,6 +76,22 @@ export default async function ProductsPage() {
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {prod.sku || "—"}
+                  </TableCell>
+                  <TableCell>
+                    {prod.brandName ? (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px]"
+                        style={{
+                          borderColor: prod.brandColor || undefined,
+                          color: prod.brandColor || undefined,
+                        }}
+                      >
+                        {prod.brandName}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground/60">General</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground max-w-xs truncate">
                     {prod.description || "—"}
