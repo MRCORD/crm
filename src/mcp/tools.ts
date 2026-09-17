@@ -82,6 +82,16 @@ import {
   canReadRecord,
 } from '../lib/permissions';
 import { createBrand, listBrands, assignBrand, getBrandPipelineSummary } from '../lib/brands';
+import {
+  listStageCategories,
+  createStageCategory,
+  listPipelineStages,
+  createPipelineStage,
+  listPipelineTemplates,
+  applyPipelineTemplate,
+  saveCurrentPipelineAsTemplate,
+  getStageCategoryFlags,
+} from '../lib/pipeline-stages';
 
 /**
  * Tool Schemas for Model Context Protocol
@@ -118,10 +128,10 @@ export const crmToolSchemas = {
 
   // 4. Update Opportunity Stage (Gated with HITL risk tiering)
   updateOpportunityStage: {
-    description: 'Update the pipeline stage of an opportunity. Moving to CLOSED_WON triggers a human approval check.',
+    description: 'Update the pipeline stage of an opportunity. Moving into any stage whose category is Won or Lost (built-in or custom) triggers a human approval check. Call crm_list_pipeline_stages for the current set of valid stage keys.',
     parameters: z.object({
       opportunityId: z.string().uuid().describe('The UUID of the opportunity'),
-      newStage: z.enum(['DISCOVERY', 'PROPOSAL', 'NEGOTIATION', 'CLOSED_WON', 'CLOSED_LOST']),
+      newStage: z.string().describe('Pipeline stage key, e.g. DISCOVERY, PROPOSAL, CLOSED_WON, or a custom stage key defined via crm_create_pipeline_stage'),
       healthScore: z.number().min(-1.0).max(1.0).optional().describe('AI assessed deal sentiment score (-1.0 to 1.0)'),
       reason: z.string().describe('Reasoning for the stage change'),
     }),
@@ -776,6 +786,64 @@ export const crmToolSchemas = {
     description: 'Cross-brand pipeline rollup for the holding company view: active deals, pipeline amount, and won amount grouped by DBA.',
     parameters: z.object({}),
   },
+
+  // 67. List Pipeline Stages
+  listPipelineStages: {
+    description: 'List all pipeline stages an opportunity can be in, with their category (Open/Won/Lost or custom), color, and sort order.',
+    parameters: z.object({}),
+  },
+
+  // 68. Create Pipeline Stage
+  createPipelineStage: {
+    description: 'Add a new custom pipeline stage to the opportunities board, e.g. "Demo Scheduled" or "Legal Review".',
+    parameters: z.object({
+      label: z.string().describe("Display label, e.g. 'Demo Scheduled'"),
+      key: z.string().optional().describe("Optional explicit key; derived from label if omitted, e.g. 'DEMO_SCHEDULED'"),
+      categoryId: z.string().uuid().describe('UUID of the stage category (Open/Won/Lost or custom) this stage belongs to — see crm_list_stage_categories'),
+      color: z.string().optional().describe("UI chip color: 'blue', 'purple', 'amber', 'emerald', 'rose', 'gray', etc."),
+    }),
+  },
+
+  // 69. List Stage Categories
+  listStageCategories: {
+    description: 'List the semantic categories a pipeline stage can belong to (built-in Open/Won/Lost, plus any custom categories such as "On Hold"). isWon/isLost/isClosed flags drive pipeline reporting math and the human-approval gate.',
+    parameters: z.object({}),
+  },
+
+  // 70. Create Stage Category
+  createStageCategory: {
+    description: 'Define a new custom stage category (e.g. "On Hold", "Nurturing") beyond the built-in Open/Won/Lost buckets.',
+    parameters: z.object({
+      key: z.string().describe("Short identifier, e.g. 'ON_HOLD'"),
+      label: z.string().describe("Display label, e.g. 'On Hold'"),
+      color: z.string().optional(),
+      isWon: z.boolean().optional().describe('Whether stages in this category count as won pipeline'),
+      isLost: z.boolean().optional().describe('Whether stages in this category count as lost pipeline'),
+    }),
+  },
+
+  // 71. List Pipeline Templates
+  listPipelineTemplates: {
+    description: 'List reusable pipeline blueprints (e.g. "SaaS Subscription", "Enterprise / Complex Sale") that can be applied to add their stages onto the current board.',
+    parameters: z.object({}),
+  },
+
+  // 72. Apply Pipeline Template
+  applyPipelineTemplate: {
+    description: 'Apply a pipeline template: creates any of its stages that do not already exist on the current board (matched by key). Existing stages and their opportunities are never modified or removed.',
+    parameters: z.object({
+      templateId: z.string().uuid().describe('UUID of the pipeline template, from crm_list_pipeline_templates'),
+    }),
+  },
+
+  // 73. Save Current Pipeline As Template
+  saveCurrentPipelineAsTemplate: {
+    description: 'Snapshot the current board (all existing pipeline stages, in order, with their categories) into a brand new reusable custom template, so it can be re-applied later (e.g. to a re-import, or documented for other workspaces).',
+    parameters: z.object({
+      name: z.string().describe("Template name, e.g. 'Q1 Enterprise Pipeline'"),
+      description: z.string().optional(),
+    }),
+  },
 };
 
 /**
@@ -833,12 +901,15 @@ export const crmToolHandlers = {
 
   async updateOpportunityStage({ opportunityId, newStage, healthScore, reason }: {
     opportunityId: string;
-    newStage: 'DISCOVERY' | 'PROPOSAL' | 'NEGOTIATION' | 'CLOSED_WON' | 'CLOSED_LOST';
+    newStage: string;
     healthScore?: number;
     reason: string;
   }) {
-    // Risk Gate: If moving to CLOSED_WON or CLOSED_LOST, require Human-in-the-Loop approval
-    if (newStage === 'CLOSED_WON' || newStage === 'CLOSED_LOST') {
+    // Risk Gate: moving into any stage whose category is Won or Lost (built-in
+    // or custom) requires Human-in-the-Loop approval, not just the two
+    // hardcoded CLOSED_WON/CLOSED_LOST keys — this generalizes to custom stages.
+    const { isClosed } = await getStageCategoryFlags(newStage);
+    if (isClosed) {
       const [approval] = await db.insert(mcpApprovals).values({
         toolName: 'updateOpportunityStage',
         actionType: 'CHANGE_STAGE_HIGH_RISK',
@@ -1662,5 +1733,40 @@ export const crmToolHandlers = {
       totalActivePipelineMicros: summary.reduce((s, b) => s + BigInt(b.activePipelineMicros), BigInt(0)).toString(),
       totalWonMicros: summary.reduce((s, b) => s + BigInt(b.wonAmountMicros), BigInt(0)).toString(),
     };
+  },
+
+  async listPipelineStages() {
+    const stagesList = await listPipelineStages();
+    return { count: stagesList.length, stages: stagesList };
+  },
+
+  async createPipelineStage(input: { label: string; key?: string; categoryId: string; color?: string }) {
+    const stage = await createPipelineStage(input);
+    return { success: true, stage };
+  },
+
+  async listStageCategories() {
+    const categories = await listStageCategories();
+    return { count: categories.length, categories };
+  },
+
+  async createStageCategory(input: { key: string; label: string; color?: string; isWon?: boolean; isLost?: boolean }) {
+    const category = await createStageCategory(input);
+    return { success: true, category };
+  },
+
+  async listPipelineTemplates() {
+    const templates = await listPipelineTemplates();
+    return { count: templates.length, templates };
+  },
+
+  async applyPipelineTemplate({ templateId }: { templateId: string }) {
+    const result = await applyPipelineTemplate(templateId);
+    return { success: true, ...result };
+  },
+
+  async saveCurrentPipelineAsTemplate(input: { name: string; description?: string }) {
+    const template = await saveCurrentPipelineAsTemplate(input);
+    return { success: true, template };
   },
 };

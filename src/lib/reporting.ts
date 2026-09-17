@@ -6,6 +6,8 @@ import {
   timelineActivities,
   dashboards,
   dashboardWidgets,
+  pipelineStages,
+  stageCategories,
 } from '../db/schema';
 import { eq, and, sql, desc, asc, isNull } from 'drizzle-orm';
 
@@ -19,39 +21,49 @@ export type WidgetType =
 
 /**
  * Pipeline funnel: opportunity count and total value by stage.
+ * Ordering and open/closed classification come from `crm.pipeline_stages` /
+ * `crm.stage_categories` rather than a hardcoded stage list, so custom
+ * stages sort and roll up correctly without a code change.
  */
 export async function getPipelineFunnelReport() {
   const rows = await db
     .select({
       stage: opportunities.stage,
       count: sql<number>`count(*)::int`,
-      totalAmountMicros: sql<string>`coalesce(sum(amount_micros::numeric), 0)::text`,
-      avgHealthScore: sql<string>`round(coalesce(avg(health_score::numeric), 0), 2)::text`,
+      totalAmountMicros: sql<string>`coalesce(sum(${opportunities.amountMicros}::numeric), 0)::text`,
+      avgHealthScore: sql<string>`round(coalesce(avg(${opportunities.healthScore}::numeric), 0), 2)::text`,
     })
     .from(opportunities)
     .where(isNull(opportunities.deletedAt))
-    .groupBy(opportunities.stage)
-    .orderBy(
-      sql`CASE stage
-        WHEN 'DISCOVERY' THEN 1
-        WHEN 'PROPOSAL' THEN 2
-        WHEN 'NEGOTIATION' THEN 3
-        WHEN 'CLOSED_WON' THEN 4
-        WHEN 'CLOSED_LOST' THEN 5
-        ELSE 6
-      END`
-    );
+    .groupBy(opportunities.stage);
 
-  const totalPipelineMicros = rows
-    .filter((r) => !['CLOSED_WON', 'CLOSED_LOST'].includes(r.stage))
+  const stageMeta = await db
+    .select({
+      key: pipelineStages.key,
+      sortOrder: pipelineStages.sortOrder,
+      isClosed: stageCategories.isClosed,
+      isWon: stageCategories.isWon,
+    })
+    .from(pipelineStages)
+    .innerJoin(stageCategories, eq(pipelineStages.categoryId, stageCategories.id));
+
+  const metaByKey = new Map(stageMeta.map((m) => [m.key, m]));
+  const isClosedStage = (stage: string) => metaByKey.get(stage)?.isClosed ?? false;
+
+  const sortedRows = [...rows].sort(
+    (a, b) => (metaByKey.get(a.stage)?.sortOrder ?? 999) - (metaByKey.get(b.stage)?.sortOrder ?? 999)
+  );
+
+  const totalPipelineMicros = sortedRows
+    .filter((r) => !isClosedStage(r.stage))
     .reduce((s, r) => s + BigInt(r.totalAmountMicros), BigInt(0));
 
   return {
     reportType: 'PIPELINE_FUNNEL',
     generatedAt: new Date().toISOString(),
-    stages: rows,
+    stages: sortedRows,
     summary: {
-      totalActiveStages: rows.filter((r) => !['CLOSED_WON', 'CLOSED_LOST'].includes(r.stage)).length,
+      totalActiveStages: sortedRows.filter((r) => !isClosedStage(r.stage)).length,
       activePipelineMicros: totalPipelineMicros.toString(),
     },
   };

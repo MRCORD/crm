@@ -43,6 +43,20 @@ import {
 } from "@/lib/reporting"
 import { getBrandPipelineSummary, listBrands, createBrand } from "@/lib/brands"
 import {
+  listStageCategories,
+  createStageCategory,
+  updateStageCategory,
+  deleteStageCategory,
+  listPipelineStages,
+  createPipelineStage,
+  updatePipelineStage,
+  reorderPipelineStages,
+  deletePipelineStage,
+  listPipelineTemplates,
+  saveCurrentPipelineAsTemplate,
+  applyPipelineTemplate,
+} from "@/lib/pipeline-stages"
+import {
   listSequences,
   createSequence,
   enrollPersonInSequence,
@@ -159,12 +173,15 @@ export async function getCompanyDetail(id: string) {
     hierarchy = await getCompanyHierarchy(id)
   } catch {}
 
+  const stages = await listPipelineStages()
+
   return {
     company,
     opportunities: relatedOpportunities,
     people: relatedPeople,
     timeline,
     hierarchy,
+    stages,
   }
 }
 
@@ -220,12 +237,10 @@ export async function updateCompanyParentAction(
 // OPPORTUNITIES ACTIONS
 // ============================================================================
 
-export type OpportunityStage =
-  | "DISCOVERY"
-  | "PROPOSAL"
-  | "NEGOTIATION"
-  | "CLOSED_WON"
-  | "CLOSED_LOST"
+// Historically a fixed 5-value union; stages are now fully user-customizable
+// (see crm.pipeline_stages), so this is kept as a named alias for a free-form
+// stage key rather than churning every call site that imports the type.
+export type OpportunityStage = string
 
 export async function getOpportunities(brandId?: string) {
   const query = db
@@ -314,6 +329,7 @@ export async function getOpportunityDetail(id: string) {
   })
 
   const catalogProducts = await listProducts({ isActive: true })
+  const stages = await listPipelineStages()
 
   return {
     opportunity: opp,
@@ -321,6 +337,7 @@ export async function getOpportunityDetail(id: string) {
     quotes: quotesList,
     timeline,
     products: catalogProducts,
+    stages,
   }
 }
 
@@ -404,6 +421,93 @@ export async function createOpportunityAction(data: {
   revalidatePath(`/companies/${data.companyId}`)
   revalidatePath("/")
   return created
+}
+
+// ============================================================================
+// PIPELINE STAGES, CATEGORIES & TEMPLATES (custom, user-editable)
+// ============================================================================
+
+export async function getPipelineStagesAction() {
+  return await listPipelineStages()
+}
+
+export async function getStageCategoriesAction() {
+  return await listStageCategories()
+}
+
+export async function createStageCategoryAction(data: {
+  key: string
+  label: string
+  color?: string
+  isWon?: boolean
+  isLost?: boolean
+}) {
+  const created = await createStageCategory(data)
+  revalidatePath("/opportunities")
+  return created
+}
+
+export async function updateStageCategoryAction(
+  id: string,
+  patch: { label?: string; color?: string; isWon?: boolean; isLost?: boolean }
+) {
+  const updated = await updateStageCategory(id, patch)
+  revalidatePath("/opportunities")
+  return updated
+}
+
+export async function deleteStageCategoryAction(id: string) {
+  const result = await deleteStageCategory(id)
+  revalidatePath("/opportunities")
+  return result
+}
+
+export async function createPipelineStageAction(data: {
+  key?: string
+  label: string
+  color?: string
+  categoryId: string
+}) {
+  const created = await createPipelineStage(data)
+  revalidatePath("/opportunities")
+  return created
+}
+
+export async function updatePipelineStageAction(
+  id: string,
+  patch: { label?: string; color?: string; categoryId?: string }
+) {
+  const updated = await updatePipelineStage(id, patch)
+  revalidatePath("/opportunities")
+  return updated
+}
+
+export async function reorderPipelineStagesAction(orderedIds: string[]) {
+  const result = await reorderPipelineStages(orderedIds)
+  revalidatePath("/opportunities")
+  return result
+}
+
+export async function deletePipelineStageAction(id: string) {
+  const result = await deletePipelineStage(id)
+  revalidatePath("/opportunities")
+  return result
+}
+
+export async function getPipelineTemplatesAction() {
+  return await listPipelineTemplates()
+}
+
+export async function applyPipelineTemplateAction(templateId: string) {
+  const result = await applyPipelineTemplate(templateId)
+  revalidatePath("/opportunities")
+  return result
+}
+
+export async function saveCurrentPipelineAsTemplateAction(data: { name: string; description?: string }) {
+  const result = await saveCurrentPipelineAsTemplate(data)
+  revalidatePath("/opportunities")
+  return result
 }
 
 // ============================================================================
@@ -865,6 +969,7 @@ export async function getDashboardData() {
   const funnel = await getPipelineFunnelReport()
   const brandSummary = await getBrandPipelineSummary()
   const brandsList = await listBrands(true)
+  const stages = await listPipelineStages()
 
   const recentOpportunities = await db
     .select({
@@ -904,5 +1009,6 @@ export async function getDashboardData() {
     brands: brandsList,
     recentOpportunities,
     recentCompanies,
+    stages,
   }
 }

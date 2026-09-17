@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { getDashboardData } from "@/actions/crm"
 import { formatMicros, formatDate } from "@/lib/utils"
+import { stageBadgeClass, buildStageMap } from "@/lib/stage-colors"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,24 +13,18 @@ import {
   LayersIcon,
 } from "lucide-react"
 
-const STAGE_COLORS: Record<string, string> = {
-  DISCOVERY: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  PROPOSAL: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
-  NEGOTIATION: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
-  CLOSED_WON: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
-  CLOSED_LOST: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
-}
-
 export default async function DashboardPage() {
-  const { funnel, brandSummary, recentOpportunities, recentCompanies } =
+  const { funnel, brandSummary, recentOpportunities, recentCompanies, stages } =
     await getDashboardData()
 
+  const stageMap = buildStageMap(stages)
+
   const activeDealsCount = funnel.stages
-    .filter((s) => !["CLOSED_WON", "CLOSED_LOST"].includes(s.stage))
+    .filter((s) => !stageMap.get(s.stage)?.category.isClosed)
     .reduce((acc, s) => acc + s.count, 0)
 
-  const wonDealsValue =
-    funnel.stages.find((s) => s.stage === "CLOSED_WON")?.totalAmountMicros || "0"
+  const wonStage = funnel.stages.find((s) => stageMap.get(s.stage)?.category.isWon)
+  const wonDealsValue = wonStage?.totalAmountMicros || "0"
 
   return (
     <div className="flex flex-col gap-6">
@@ -80,7 +75,7 @@ export default async function DashboardPage() {
               {formatMicros(wonDealsValue)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {funnel.stages.find((s) => s.stage === "CLOSED_WON")?.count ?? 0} deals won all-time
+              {wonStage?.count ?? 0} deals won all-time
             </p>
           </CardContent>
         </Card>
@@ -116,8 +111,8 @@ export default async function DashboardPage() {
         <CardContent>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {funnel.stages.map((stage) => {
-              const badgeClass =
-                STAGE_COLORS[stage.stage] || "bg-muted text-foreground"
+              const info = stageMap.get(stage.stage)
+              const badgeClass = stageBadgeClass(info?.color)
               return (
                 <div
                   key={stage.stage}
@@ -125,7 +120,7 @@ export default async function DashboardPage() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      {stage.stage.replace("_", " ")}
+                      {info?.label ?? stage.stage.replace("_", " ")}
                     </span>
                     <Badge variant="secondary" className={badgeClass}>
                       {stage.count}
@@ -185,9 +180,9 @@ export default async function DashboardPage() {
                         </span>
                         <Badge
                           variant="outline"
-                          className={`text-[10px] ${STAGE_COLORS[opp.stage] || ""}`}
+                          className={`text-[10px] ${stageBadgeClass(stageMap.get(opp.stage)?.color)}`}
                         >
-                          {opp.stage.replace("_", " ")}
+                          {stageMap.get(opp.stage)?.label ?? opp.stage.replace("_", " ")}
                         </Badge>
                       </div>
                     </div>

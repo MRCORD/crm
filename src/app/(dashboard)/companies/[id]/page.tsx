@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getCompanyDetail } from "@/actions/crm"
 import { formatMicros, formatDate, formatRelativeTime } from "@/lib/utils"
+import { stageBadgeClass, buildStageMap } from "@/lib/stage-colors"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,13 +32,6 @@ import {
   FileTextIcon,
 } from "lucide-react"
 
-const STAGE_COLORS: Record<string, string> = {
-  DISCOVERY: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  PROPOSAL: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
-  NEGOTIATION: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
-  CLOSED_WON: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
-  CLOSED_LOST: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
-}
 
 export default async function CompanyDetailPage({
   params,
@@ -51,10 +45,11 @@ export default async function CompanyDetailPage({
     notFound()
   }
 
-  const { company, opportunities: opps, people: contacts, timeline, hierarchy } = data
+  const { company, opportunities: opps, people: contacts, timeline, hierarchy, stages } = data
+  const stageMap = buildStageMap(stages)
 
   const totalPipeline = opps
-    .filter((o) => !["CLOSED_WON", "CLOSED_LOST"].includes(o.stage))
+    .filter((o) => !stageMap.get(o.stage)?.category.isClosed)
     .reduce((acc, o) => acc + BigInt(o.amountMicros || 0), BigInt(0))
 
   return (
@@ -325,9 +320,9 @@ export default async function CompanyDetailPage({
                         <TableCell>
                           <Badge
                             variant="secondary"
-                            className={STAGE_COLORS[opp.stage] || ""}
+                            className={stageBadgeClass(stageMap.get(opp.stage)?.color)}
                           >
-                            {opp.stage.replace("_", " ")}
+                            {stageMap.get(opp.stage)?.label ?? opp.stage.replace("_", " ")}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right font-semibold">

@@ -4,6 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { updateOpportunityStageAction, OpportunityStage } from "@/actions/crm"
 import { formatMicros, formatDate } from "@/lib/utils"
+import { stageBorderClass, stageBadgeClass } from "@/lib/stage-colors"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { AddStageDialog, StageCategoryOption } from "@/components/opportunities/add-stage-dialog"
 import {
   DollarSignIcon,
   Building2Icon,
@@ -39,20 +41,22 @@ export interface KanbanOpportunity {
   brandColor: string | null
 }
 
-const STAGES: { key: OpportunityStage; label: string; color: string }[] = [
-  { key: "DISCOVERY", label: "Discovery", color: "border-t-blue-500" },
-  { key: "PROPOSAL", label: "Proposal", color: "border-t-purple-500" },
-  { key: "NEGOTIATION", label: "Negotiation", color: "border-t-amber-500" },
-  { key: "CLOSED_WON", label: "Closed Won", color: "border-t-emerald-500" },
-  { key: "CLOSED_LOST", label: "Closed Lost", color: "border-t-rose-500" },
-]
+export interface KanbanStage {
+  key: string
+  label: string
+  color: string
+}
 
 export function KanbanBoard({
   initialOpportunities,
   brands,
+  stages,
+  categories,
 }: {
   initialOpportunities: KanbanOpportunity[]
   brands: { id: string; name: string; slug: string; color?: string | null }[]
+  stages: KanbanStage[]
+  categories: StageCategoryOption[]
 }) {
   const [opportunities, setOpportunities] =
     React.useState<KanbanOpportunity[]>(initialOpportunities)
@@ -126,9 +130,9 @@ export function KanbanBoard({
         })}
       </div>
 
-      {/* Kanban 5 Columns */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-5 items-start">
-        {STAGES.map((col) => {
+      {/* Kanban Columns (scrollable — column count varies with custom stages) */}
+      <div className="flex gap-4 overflow-x-auto pb-2 items-start">
+        {stages.map((col) => {
           const columnDeals = filteredOpportunities.filter(
             (o) => o.stage === col.key
           )
@@ -140,7 +144,7 @@ export function KanbanBoard({
           return (
             <div
               key={col.key}
-              className={`flex flex-col rounded-xl border border-t-4 ${col.color} bg-muted/20 p-3`}
+              className={`flex w-72 shrink-0 flex-col rounded-xl border border-t-4 ${stageBorderClass(col.color)} bg-muted/20 p-3`}
             >
               {/* Column Header */}
               <div className="flex items-center justify-between pb-3">
@@ -206,7 +210,7 @@ export function KanbanBoard({
                             <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase">
                               Move to stage
                             </div>
-                            {STAGES.map((s) => (
+                            {stages.map((s) => (
                               <DropdownMenuItem
                                 key={s.key}
                                 disabled={s.key === opp.stage}
@@ -256,6 +260,7 @@ export function KanbanBoard({
             </div>
           )
         })}
+        <AddStageDialog categories={categories} />
       </div>
     </div>
   )

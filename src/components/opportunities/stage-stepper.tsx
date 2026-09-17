@@ -3,22 +3,24 @@
 import * as React from "react"
 import { updateOpportunityStageAction, OpportunityStage } from "@/actions/crm"
 import { Button } from "@/components/ui/button"
+import { stageSolidClass } from "@/lib/stage-colors"
 import { CheckIcon, Loader2Icon } from "lucide-react"
 
-const STAGES: { key: OpportunityStage; label: string }[] = [
-  { key: "DISCOVERY", label: "Discovery" },
-  { key: "PROPOSAL", label: "Proposal" },
-  { key: "NEGOTIATION", label: "Negotiation" },
-  { key: "CLOSED_WON", label: "Closed Won" },
-  { key: "CLOSED_LOST", label: "Closed Lost" },
-]
+export interface StageStepperStage {
+  key: string
+  label: string
+  color: string
+  category: { isClosed: boolean; isWon: boolean; isLost: boolean }
+}
 
 export function StageStepper({
   opportunityId,
   currentStage,
+  stages,
 }: {
   opportunityId: string
   currentStage: string
+  stages: StageStepperStage[]
 }) {
   const [stage, setStage] = React.useState(currentStage)
   const [loadingStage, setLoadingStage] = React.useState<string | null>(null)
@@ -43,16 +45,14 @@ export function StageStepper({
     }
   }
 
-  const currentIndex = STAGES.findIndex((s) => s.key === stage)
+  const currentIndex = stages.findIndex((s) => s.key === stage)
+  const currentIsClosedLost = stages.find((s) => s.key === stage)?.category.isLost ?? false
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 rounded-lg border bg-muted/40 p-1.5">
-      {STAGES.map((s, idx) => {
+      {stages.map((s, idx) => {
         const isCurrent = s.key === stage
-        const isPassed =
-          stage !== "CLOSED_LOST" &&
-          s.key !== "CLOSED_LOST" &&
-          idx < currentIndex
+        const isPassed = !currentIsClosedLost && !s.category.isLost && idx < currentIndex
 
         let variant: "default" | "secondary" | "outline" = "outline"
         if (isCurrent) {
@@ -68,15 +68,7 @@ export function StageStepper({
             variant={variant}
             disabled={loadingStage !== null}
             onClick={() => handleSelectStage(s.key)}
-            className={`h-8 text-xs font-medium ${
-              isCurrent
-                ? s.key === "CLOSED_WON"
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                  : s.key === "CLOSED_LOST"
-                  ? "bg-rose-600 hover:bg-rose-700 text-white"
-                  : ""
-                : ""
-            }`}
+            className={`h-8 text-xs font-medium ${isCurrent ? stageSolidClass(s.color) : ""}`}
           >
             {loadingStage === s.key ? (
               <Loader2Icon className="mr-1 size-3 animate-spin" />
