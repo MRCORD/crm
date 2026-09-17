@@ -692,6 +692,27 @@ export function createCrmMcpServer() {
   server.tool('crm_get_brand_pipeline_summary', crmToolSchemas.getBrandPipelineSummary.description, crmToolSchemas.getBrandPipelineSummary.parameters.shape,
     async (args) => executeWithReceipt('crm_get_brand_pipeline_summary', args, undefined, undefined, () => crmToolHandlers.getBrandPipelineSummary()));
 
+  server.tool('crm_list_pipeline_stages', crmToolSchemas.listPipelineStages.description, crmToolSchemas.listPipelineStages.parameters.shape,
+    async (args) => executeWithReceipt('crm_list_pipeline_stages', args, undefined, undefined, () => crmToolHandlers.listPipelineStages()));
+
+  server.tool('crm_create_pipeline_stage', crmToolSchemas.createPipelineStage.description, crmToolSchemas.createPipelineStage.parameters.shape,
+    async (args) => executeWithReceipt('crm_create_pipeline_stage', args, undefined, undefined, () => crmToolHandlers.createPipelineStage(args)));
+
+  server.tool('crm_list_stage_categories', crmToolSchemas.listStageCategories.description, crmToolSchemas.listStageCategories.parameters.shape,
+    async (args) => executeWithReceipt('crm_list_stage_categories', args, undefined, undefined, () => crmToolHandlers.listStageCategories()));
+
+  server.tool('crm_create_stage_category', crmToolSchemas.createStageCategory.description, crmToolSchemas.createStageCategory.parameters.shape,
+    async (args) => executeWithReceipt('crm_create_stage_category', args, undefined, undefined, () => crmToolHandlers.createStageCategory(args)));
+
+  server.tool('crm_list_pipeline_templates', crmToolSchemas.listPipelineTemplates.description, crmToolSchemas.listPipelineTemplates.parameters.shape,
+    async (args) => executeWithReceipt('crm_list_pipeline_templates', args, undefined, undefined, () => crmToolHandlers.listPipelineTemplates()));
+
+  server.tool('crm_apply_pipeline_template', crmToolSchemas.applyPipelineTemplate.description, crmToolSchemas.applyPipelineTemplate.parameters.shape,
+    async (args) => executeWithReceipt('crm_apply_pipeline_template', args, undefined, undefined, () => crmToolHandlers.applyPipelineTemplate(args)));
+
+  server.tool('crm_save_current_pipeline_as_template', crmToolSchemas.saveCurrentPipelineAsTemplate.description, crmToolSchemas.saveCurrentPipelineAsTemplate.parameters.shape,
+    async (args) => executeWithReceipt('crm_save_current_pipeline_as_template', args, undefined, undefined, () => crmToolHandlers.saveCurrentPipelineAsTemplate(args)));
+
   // ============================================================================
   // REGISTER MCP RESOURCES
   // ============================================================================

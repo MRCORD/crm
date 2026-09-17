@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getOpportunityDetail } from "@/actions/crm"
 import { formatMicros, formatDate, formatRelativeTime } from "@/lib/utils"
+import { stageBadgeClass, buildStageMap } from "@/lib/stage-colors"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,14 +19,6 @@ import {
   TrendingUpIcon,
 } from "lucide-react"
 
-const STAGE_COLORS: Record<string, string> = {
-  DISCOVERY: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  PROPOSAL: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
-  NEGOTIATION: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
-  CLOSED_WON: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
-  CLOSED_LOST: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
-}
-
 export default async function OpportunityDetailPage({
   params,
 }: {
@@ -38,7 +31,8 @@ export default async function OpportunityDetailPage({
     notFound()
   }
 
-  const { opportunity: opp, lineItems, quotes, timeline, products } = data
+  const { opportunity: opp, lineItems, quotes, timeline, products, stages } = data
+  const stageMap = buildStageMap(stages)
 
   return (
     <div className="flex flex-col gap-6">
@@ -70,9 +64,9 @@ export default async function OpportunityDetailPage({
               <h1 className="text-2xl font-bold tracking-tight">{opp.name}</h1>
               <Badge
                 variant="secondary"
-                className={STAGE_COLORS[opp.stage] || ""}
+                className={stageBadgeClass(stageMap.get(opp.stage)?.color)}
               >
-                {opp.stage.replace("_", " ")}
+                {stageMap.get(opp.stage)?.label ?? opp.stage.replace("_", " ")}
               </Badge>
               {opp.brandName && (
                 <Badge
@@ -134,7 +128,7 @@ export default async function OpportunityDetailPage({
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Sales Stage Progression
         </span>
-        <StageStepper opportunityId={opp.id} currentStage={opp.stage} />
+        <StageStepper opportunityId={opp.id} currentStage={opp.stage} stages={stages} />
       </div>
 
       {/* Tabs */}
@@ -244,9 +238,9 @@ export default async function OpportunityDetailPage({
                 <span className="text-muted-foreground">Stage</span>
                 <Badge
                   variant="outline"
-                  className={STAGE_COLORS[opp.stage] || ""}
+                  className={stageBadgeClass(stageMap.get(opp.stage)?.color)}
                 >
-                  {opp.stage.replace("_", " ")}
+                  {stageMap.get(opp.stage)?.label ?? opp.stage.replace("_", " ")}
                 </Badge>
               </div>
               <div className="flex justify-between border-b pb-2">

@@ -661,3 +661,82 @@ export const brands = crmSchema.table('brands', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
+
+// ============================================================================
+// 20. PIPELINE STAGE CATEGORIES, STAGES & TEMPLATES (fully user-customizable)
+// ============================================================================
+
+/**
+ * Semantic bucket a pipeline stage belongs to (e.g. Open, Won, Lost).
+ * Categories are themselves user-definable — a workspace can add buckets like
+ * "On Hold" or "Nurturing" — but `isWon`/`isLost` drive reporting math
+ * (active pipeline totals, win-rate) and `isClosed` drives the MCP
+ * human-in-the-loop approval gate for any stage change into a closed state.
+ */
+export const stageCategories = crmSchema.table('stage_categories', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  key: text('key').unique().notNull(), // e.g. 'OPEN', 'WON', 'LOST', or custom 'ON_HOLD'
+  label: text('label').notNull(),
+  color: text('color').default('gray').notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
+  isWon: boolean('is_won').default(false).notNull(),
+  isLost: boolean('is_lost').default(false).notNull(),
+  isClosed: boolean('is_closed').default(false).notNull(), // won OR lost OR any other terminal bucket
+  isSystem: boolean('is_system').default(false).notNull(), // built-in category, cannot be deleted
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * A pipeline stage an opportunity can sit in. `key` is the exact text value
+ * stored in `opportunities.stage` — stored as plain text (not a DB enum or FK)
+ * so stages can be added/renamed/removed without a schema migration.
+ */
+export const pipelineStages = crmSchema.table('pipeline_stages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  key: text('key').unique().notNull(), // e.g. 'DISCOVERY', or a custom 'DEMO_SCHEDULED'
+  label: text('label').notNull(),
+  color: text('color').default('gray').notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
+  categoryId: uuid('category_id').notNull().references(() => stageCategories.id, { onDelete: 'restrict' }),
+  isSystem: boolean('is_system').default(false).notNull(), // built-in stage, cannot be deleted (only relabeled/recolored)
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * A reusable named pipeline blueprint (e.g. "SaaS Subscription",
+ * "Enterprise / Complex Sale") a workspace can apply to seed additional
+ * stages onto its board without hand-creating each one.
+ */
+export const pipelineTemplates = crmSchema.table('pipeline_templates', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  key: text('key').unique().notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  isBuiltin: boolean('is_builtin').default(false).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * One stage blueprint row within a pipeline template. `categoryKey` is a
+ * semantic tag ('OPEN' | 'WON' | 'LOST' | custom) resolved against
+ * `stageCategories.key` at apply-time — templates reference categories by
+ * key rather than id since they are static content, applied across
+ * potentially-different category sets.
+ */
+export const pipelineTemplateStages = crmSchema.table(
+  'pipeline_template_stages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    templateId: uuid('template_id').notNull().references(() => pipelineTemplates.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    label: text('label').notNull(),
+    color: text('color').default('gray').notNull(),
+    sortOrder: integer('sort_order').default(0).notNull(),
+    categoryKey: text('category_key').notNull(),
+  },
+  (table) => [
+    index('idx_pipeline_template_stages_template').on(table.templateId),
+  ]
+);

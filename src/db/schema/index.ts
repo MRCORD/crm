@@ -31,6 +31,10 @@ import {
   dashboardWidgets,
   fieldPermissions,
   brands,
+  stageCategories,
+  pipelineStages,
+  pipelineTemplates,
+  pipelineTemplateStages,
 } from './crm';
 import { mcpClients, mcpToolCallReceipts, mcpApprovals } from './mcp';
 import { interactionTranscripts, knowledgeDocuments } from './retrieval';
@@ -375,4 +379,26 @@ export const brandsRelations = relations(brands, ({ many }) => ({
   products: many(products),
   sequences: many(sequences),
   views: many(views),
+}));
+
+export const stageCategoriesRelations = relations(stageCategories, ({ many }) => ({
+  stages: many(pipelineStages),
+}));
+
+export const pipelineStagesRelations = relations(pipelineStages, ({ one }) => ({
+  category: one(stageCategories, {
+    fields: [pipelineStages.categoryId],
+    references: [stageCategories.id],
+  }),
+}));
+
+export const pipelineTemplatesRelations = relations(pipelineTemplates, ({ many }) => ({
+  stages: many(pipelineTemplateStages),
+}));
+
+export const pipelineTemplateStagesRelations = relations(pipelineTemplateStages, ({ one }) => ({
+  template: one(pipelineTemplates, {
+    fields: [pipelineTemplateStages.templateId],
+    references: [pipelineTemplates.id],
+  }),
 }));

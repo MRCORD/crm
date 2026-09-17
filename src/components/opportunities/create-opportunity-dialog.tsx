@@ -27,16 +27,18 @@ import { PlusIcon, Loader2Icon } from "lucide-react"
 export function CreateOpportunityDialog({
   companies,
   brands,
+  stages,
 }: {
   companies: { id: string; name: string }[]
   brands: { id: string; name: string }[]
+  stages: { key: string; label: string }[]
 }) {
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [companyId, setCompanyId] = React.useState<string>("")
   const [brandId, setBrandId] = React.useState<string>("")
-  const [stage, setStage] = React.useState<OpportunityStage>("DISCOVERY")
+  const [stage, setStage] = React.useState<OpportunityStage>(stages[0]?.key ?? "DISCOVERY")
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -149,11 +151,11 @@ export function CreateOpportunityDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="DISCOVERY">Discovery</SelectItem>
-                    <SelectItem value="PROPOSAL">Proposal</SelectItem>
-                    <SelectItem value="NEGOTIATION">Negotiation</SelectItem>
-                    <SelectItem value="CLOSED_WON">Closed Won</SelectItem>
-                    <SelectItem value="CLOSED_LOST">Closed Lost</SelectItem>
+                    {stages.map((s) => (
+                      <SelectItem key={s.key} value={s.key}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
