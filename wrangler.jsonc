@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "mysios-crm",
+  "name": "agentic-crm",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-09-16",
   "compatibility_flags": ["nodejs_compat"],
@@ -11,13 +11,7 @@
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "8537c175315b411b97e185b974f495ef"
-    }
-  ],
-  "routes": [
-    {
-      "pattern": "crm.mysioslabs.com",
-      "custom_domain": true
+      "id": "YOUR_HYPERDRIVE_CONFIG_ID"
     }
   ],
   "observability": {

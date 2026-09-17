@@ -1,5 +1,5 @@
 /**
- * Seed the Mysios Labs DBA brands into the live CRM.
+ * Seed initial DBA/operating brands into the CRM.
  * Safe to re-run — skips brands that already exist by slug.
  *
  * Usage: pnpm tsx src/db/scripts/seed-brands.ts
@@ -9,24 +9,23 @@ import { crmToolHandlers } from '../../mcp/tools';
 import { db } from '../index';
 import { brands } from '../schema';
 import { eq } from 'drizzle-orm';
-
 const BRANDS = [
   {
-    name: 'Habladoc',
-    slug: 'habladoc',
-    description: 'AI-powered voice and language products',
-    color: 'blue',
+    name: 'Healthcare Solutions',
+    slug: 'healthcare',
+    description: 'Telehealth and clinical provider workflow platform',
+    color: '#06b6d4',
   },
   {
-    name: 'Fudis',
-    slug: 'fudis',
-    description: 'Food intelligence and discovery platform',
-    color: 'green',
+    name: 'Hospitality Tech',
+    slug: 'hospitality',
+    description: 'Food & beverage POS and guest intelligence platform',
+    color: '#10b981',
   },
 ];
 
 async function main() {
-  console.log('[Brands] Seeding Mysios Labs DBAs into CRM...\n');
+  console.log('[Brands] Seeding operating brands into CRM...\n');
 
   for (const b of BRANDS) {
     const existing = await db.query.brands.findFirst({ where: eq(brands.slug, b.slug) });

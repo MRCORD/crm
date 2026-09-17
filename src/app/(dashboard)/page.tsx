@@ -24,9 +24,6 @@ export default async function DashboardPage() {
   const { funnel, brandSummary, recentOpportunities, recentCompanies } =
     await getDashboardData()
 
-  const habladoc = brandSummary.find((b) => b.brand.slug === "habladoc")
-  const fudis = brandSummary.find((b) => b.brand.slug === "fudis")
-
   const activeDealsCount = funnel.stages
     .filter((s) => !["CLOSED_WON", "CLOSED_LOST"].includes(s.stage))
     .reduce((acc, s) => acc + s.count, 0)
@@ -41,7 +38,7 @@ export default async function DashboardPage() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Overview</h2>
           <p className="text-sm text-muted-foreground">
-            Holding company portfolio pipeline across Habladoc, Fudis, and Mysios Labs.
+            Portfolio pipeline summary across active operating brands and direct accounts.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -87,36 +84,25 @@ export default async function DashboardPage() {
             </p>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Habladoc (Telehealth)</CardTitle>
-            <span className="size-2 rounded-full bg-cyan-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatMicros(habladoc?.activePipelineMicros || "0")}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {habladoc?.activeDeals ?? 0} active deals
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Fudis (F&amp;B)</CardTitle>
-            <span className="size-2 rounded-full bg-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatMicros(fudis?.activePipelineMicros || "0")}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {fudis?.activeDeals ?? 0} active deals
-            </p>
-          </CardContent>
-        </Card>
+        {brandSummary.slice(0, 2).map((item) => (
+          <Card key={item.brand.id}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{item.brand.name}</CardTitle>
+              <span
+                className="size-2 rounded-full"
+                style={{ backgroundColor: item.brand.color || "#06b6d4" }}
+              />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatMicros(item.activePipelineMicros || "0")}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {item.activeDeals} active deals
+              </p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Pipeline Funnel Stages Breakdown */}

@@ -741,10 +741,10 @@ export const crmToolSchemas = {
 
   // 63. Create Brand / DBA
   createBrand: {
-    description: "Register a DBA (Doing Business As) brand under the parent C Corp. E.g. 'Habladoc', 'Fudis'. Brands scope deals, products, and sequences.",
+    description: "Register a DBA (Doing Business As) brand under the parent entity. Brands scope deals, products, and sequences.",
     parameters: z.object({
-      name: z.string().describe("Brand display name, e.g. 'Habladoc'"),
-      slug: z.string().describe("URL-safe identifier, e.g. 'habladoc'"),
+      name: z.string().describe("Brand display name, e.g. 'Healthcare Solutions'"),
+      slug: z.string().describe("URL-safe identifier, e.g. 'healthcare'"),
       description: z.string().optional(),
       website: z.string().optional(),
       color: z.string().optional().describe("UI chip color: 'blue', 'green', 'red', 'gray', etc."),

@@ -24,7 +24,7 @@ const TITLES: { prefix: string; title: string }[] = [
 function titleForPath(pathname: string): string {
   if (pathname === "/") return "Overview"
   const match = TITLES.find((entry) => pathname.startsWith(entry.prefix))
-  return match?.title ?? "Mysios CRM"
+  return match?.title ?? "CRM"
 }
 
 export function SiteHeader() {

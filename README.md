@@ -160,7 +160,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "mysios-crm": {
+    "agentic-crm": {
       "command": "pnpm",
       "args": ["mcp"],
       "cwd": "/path/to/your/crm",

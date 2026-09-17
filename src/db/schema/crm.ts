@@ -637,22 +637,22 @@ export const fieldPermissions = crmSchema.table(
 // ============================================================================
 
 /**
- * Brand / DBA definitions for holding companies operating multiple products
+ * Brand / DBA definitions for companies operating multiple products
  * or go-to-market identities under one legal entity.
  *
- * Examples: Mysios Labs (C Corp) → Habladoc (DBA), Fudis (DBA).
+ * Example: Parent Holding Co → Brand A (DBA), Brand B (DBA).
  *
  * Placement rationale:
  *   - companies:     NO brand_id — a single company can be a client of multiple DBAs
- *   - opportunities: YES brand_id (mandatory) — every deal is under exactly one DBA
- *   - products:      YES brand_id — each DBA has its own catalog
- *   - sequences:     YES brand_id — outbound cadences are DBA-specific
- *   - views:         YES brand_id — saved views scoped to one DBA's pipeline
+ *   - opportunities: YES brand_id — every deal belongs to an operating brand
+ *   - products:      YES brand_id — each brand can have its own catalog
+ *   - sequences:     YES brand_id — outbound cadences are brand-specific
+ *   - views:         YES brand_id — saved views scoped to one brand's pipeline
  */
 export const brands = crmSchema.table('brands', {
   id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name').notNull(), // e.g. "Habladoc"
-  slug: text('slug').unique().notNull(), // e.g. "habladoc"
+  name: text('name').notNull(), // e.g. "Acme Healthcare"
+  slug: text('slug').unique().notNull(), // e.g. "acme-health"
   description: text('description'),
   website: text('website'),
   logoUrl: text('logo_url'),

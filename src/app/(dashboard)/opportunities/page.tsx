@@ -17,7 +17,7 @@ export default async function OpportunitiesPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Opportunities</h1>
           <p className="text-sm text-muted-foreground">
-            Pipeline deal progression across Habladoc, Fudis, and direct corporate accounts.
+            Pipeline deal progression across operating brands and direct corporate accounts.
           </p>
         </div>
         <div className="flex items-center gap-2">
