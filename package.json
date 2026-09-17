@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:worker": "opennextjs-cloudflare build",
+    "deploy:worker": "opennextjs-cloudflare build && wrangler deploy",
     "start": "next start",
     "lint": "next lint",
     "mcp": "tsx src/mcp/stdio.ts",
