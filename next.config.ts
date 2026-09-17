@@ -2,7 +2,15 @@ import type { NextConfig } from 'next';
 import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Allows a reverse-proxied local dev domain (e.g. a Cloudflare Tunnel used
+  // to test Clerk/webhooks against a real HTTPS hostname) to reach this dev
+  // server, including the HMR WebSocket. Without this, Next.js rejects the
+  // cross-origin request with a 502 during the WS handshake, and the dev
+  // client's runtime blocks on that failed handshake before it ever commits
+  // hydration — the whole app looks "broken" (no interactivity at all)
+  // even though nothing is actually erroring. Set DEV_TUNNEL_HOSTNAME to
+  // your tunnel's hostname (no protocol) to enable this locally.
+  allowedDevOrigins: process.env.DEV_TUNNEL_HOSTNAME ? [process.env.DEV_TUNNEL_HOSTNAME] : undefined,
 };
 
 export default nextConfig;

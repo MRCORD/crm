@@ -148,7 +148,9 @@ export function CreateOpportunityDialog({
                   onValueChange={(val) => setStage((val as OpportunityStage) ?? "DISCOVERY")}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue>
+                      {(val: string) => stages.find((s) => s.key === val)?.label ?? val}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {stages.map((s) => (

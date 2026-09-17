@@ -167,7 +167,9 @@ export function AddStageDialog({
               ) : (
                 <Select value={categoryId} onValueChange={(val) => setCategoryId(val ?? "")}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select category..." />
+                    <SelectValue placeholder="Select category...">
+                      {(val: string) => categories.find((c) => c.id === val)?.label ?? "Select category..."}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((c) => (
