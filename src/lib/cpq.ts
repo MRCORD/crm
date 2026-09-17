@@ -15,6 +15,7 @@ export interface CreateProductInput {
   description?: string;
   defaultPriceMicros: number | string;
   currency?: string;
+  brandId?: string | null;
   organizationId?: string | null;
 }
 
@@ -46,6 +47,7 @@ export async function createProduct(input: CreateProductInput) {
       description: input.description ?? null,
       defaultPriceMicros: input.defaultPriceMicros.toString(),
       currency: input.currency ?? 'USD',
+      brandId: input.brandId ?? null,
       organizationId: input.organizationId ?? null,
       isActive: true,
     })
@@ -60,6 +62,7 @@ export async function createProduct(input: CreateProductInput) {
 export async function listProducts(options?: {
   query?: string;
   isActive?: boolean;
+  brandId?: string | null;
 }) {
   const conditions = [];
   if (options?.query) {
@@ -67,6 +70,9 @@ export async function listProducts(options?: {
   }
   if (options?.isActive !== undefined) {
     conditions.push(eq(products.isActive, options.isActive));
+  }
+  if (options?.brandId) {
+    conditions.push(eq(products.brandId, options.brandId));
   }
 
   return await db.query.products.findMany({

@@ -16,12 +16,24 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { PlusIcon, Loader2Icon } from "lucide-react"
 
-export function CreateProductDialog() {
+export function CreateProductDialog({
+  brands,
+}: {
+  brands: { id: string; name: string }[]
+}) {
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [brandId, setBrandId] = React.useState<string>("")
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -41,8 +53,10 @@ export function CreateProductDialog() {
         sku,
         description,
         defaultPriceDollars: parseFloat(priceStr) || 0,
+        brandId: brandId || undefined,
       })
       setOpen(false)
+      setBrandId("")
       router.refresh()
     } catch (err: any) {
       setError(err?.message || "Failed to create product")
@@ -66,7 +80,7 @@ export function CreateProductDialog() {
           <DialogHeader>
             <DialogTitle>Add Catalog Product</DialogTitle>
             <DialogDescription>
-              Create a new product or billable service SKU.
+              Create a new product or billable service SKU, optionally scoped to a brand/DBA.
             </DialogDescription>
           </DialogHeader>
 
@@ -91,6 +105,22 @@ export function CreateProductDialog() {
                 <Label htmlFor="priceDollars">Default Price ($ USD) *</Label>
                 <Input id="priceDollars" name="priceDollars" type="number" step="0.01" required placeholder="99.00" />
               </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Brand / DBA</Label>
+              <Select value={brandId} onValueChange={(val) => setBrandId(val ?? "")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="General (no brand scope)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {brands.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid gap-2">

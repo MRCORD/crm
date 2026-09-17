@@ -530,22 +530,24 @@ export const crmToolSchemas = {
 
   // 41. Create Catalog Product
   createProduct: {
-    description: 'Add a new product or subscription to the product catalog with SKU and standard pricing.',
+    description: 'Add a new product or subscription to the product catalog with SKU and standard pricing, optionally scoped to a specific brand/DBA.',
     parameters: z.object({
       name: z.string().describe("Product name, e.g. 'Enterprise Platform License'"),
       sku: z.string().optional().describe('Unique stock keeping unit, e.g. ENT-001'),
       description: z.string().optional(),
       defaultPriceMicros: z.number().min(0).describe('Default price in USD micros ($1 = 1,000,000)'),
       currency: z.string().default('USD').optional(),
+      brandId: z.string().uuid().optional().describe('Scope this product to a specific brand/DBA catalog'),
     }),
   },
 
   // 42. List Catalog Products
   listProducts: {
-    description: 'Search and list products in the catalog.',
+    description: 'Search and list products in the catalog, optionally scoped to a specific brand/DBA.',
     parameters: z.object({
       query: z.string().optional().describe('Search term matching product name'),
       isActive: z.boolean().default(true).optional(),
+      brandId: z.string().uuid().optional().describe('Filter to only this brand/DBA catalog'),
     }),
   },
 
