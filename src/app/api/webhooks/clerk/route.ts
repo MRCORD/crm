@@ -47,11 +47,15 @@ export async function POST(req: Request) {
 
   let event: WebhookEvent;
   try {
-    event = wh.verify(body, {
+    // svix v2.5.0's `verify()` only validates the signature (throws on
+    // failure) and returns `undefined` on success — it no longer returns
+    // the parsed payload like older versions did. We parse `body` ourselves.
+    wh.verify(body, {
       'svix-id': svixId,
       'svix-timestamp': svixTimestamp,
       'svix-signature': svixSignature,
-    }) as unknown as WebhookEvent;
+    });
+    event = JSON.parse(body) as WebhookEvent;
   } catch {
     return new Response('Invalid webhook signature', { status: 400 });
   }
