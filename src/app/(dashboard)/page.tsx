@@ -1,0 +1,240 @@
+import Link from "next/link"
+import { getDashboardData } from "@/actions/crm"
+import { formatMicros, formatDate } from "@/lib/utils"
+import { stageBadgeClass, buildStageMap } from "@/lib/stage-colors"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  DollarSignIcon,
+  TrendingUpIcon,
+  Building2Icon,
+  ArrowRightIcon,
+  LayersIcon,
+} from "lucide-react"
+
+export default async function DashboardPage() {
+  const { funnel, brandSummary, recentOpportunities, recentCompanies, stages } =
+    await getDashboardData()
+
+  const stageMap = buildStageMap(stages)
+
+  const activeDealsCount = funnel.stages
+    .filter((s) => !stageMap.get(s.stage)?.category.isClosed)
+    .reduce((acc, s) => acc + s.count, 0)
+
+  const wonStage = funnel.stages.find((s) => stageMap.get(s.stage)?.category.isWon)
+  const wonDealsValue = wonStage?.totalAmountMicros || "0"
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Top Header */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Overview</h2>
+          <p className="text-sm text-muted-foreground">
+            Portfolio pipeline summary across active operating brands and direct accounts.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" render={<Link href="/companies" />}>
+            <Building2Icon className="mr-1 size-4" />
+            Companies
+          </Button>
+          <Button size="sm" render={<Link href="/opportunities" />}>
+            <LayersIcon className="mr-1 size-4" />
+            Pipeline Board
+          </Button>
+        </div>
+      </div>
+
+      {/* Top 4 KPI Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Pipeline</CardTitle>
+            <DollarSignIcon className="size-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatMicros(funnel.summary.activePipelineMicros)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {activeDealsCount} open opportunities across stages
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Closed Won</CardTitle>
+            <TrendingUpIcon className="size-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatMicros(wonDealsValue)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {wonStage?.count ?? 0} deals won all-time
+            </p>
+          </CardContent>
+        </Card>
+        {brandSummary.slice(0, 2).map((item) => (
+          <Card key={item.brand.id}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{item.brand.name}</CardTitle>
+              <span
+                className="size-2 rounded-full"
+                style={{ backgroundColor: item.brand.color || "#06b6d4" }}
+              />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatMicros(item.activePipelineMicros || "0")}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {item.activeDeals} active deals
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Pipeline Funnel Stages Breakdown */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Pipeline Stage Funnel</CardTitle>
+          <CardDescription>
+            Current opportunity distribution by sales stage
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {funnel.stages.map((stage) => {
+              const info = stageMap.get(stage.stage)
+              const badgeClass = stageBadgeClass(info?.color)
+              return (
+                <div
+                  key={stage.stage}
+                  className="flex flex-col justify-between rounded-lg border p-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {info?.label ?? stage.stage.replace("_", " ")}
+                    </span>
+                    <Badge variant="secondary" className={badgeClass}>
+                      {stage.count}
+                    </Badge>
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-lg font-bold">
+                      {formatMicros(stage.totalAmountMicros)}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Two Column Section: Recent Opportunities & Recent Companies */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Left: Recent Opportunities */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Recent Deals</CardTitle>
+              <CardDescription>Latest pipeline additions and updates</CardDescription>
+            </div>
+            <Button size="sm" variant="ghost" render={<Link href="/opportunities" />}>
+              View Board <ArrowRightIcon className="ml-1 size-3" />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="divide-y">
+              {recentOpportunities.length === 0 ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  No opportunities yet.
+                </p>
+              ) : (
+                recentOpportunities.map((opp) => (
+                  <Link
+                    key={opp.id}
+                    href={`/opportunities/${opp.id}`}
+                    className="flex items-center justify-between py-3 transition-colors hover:bg-muted/50"
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-sm font-medium hover:underline">
+                        {opp.name}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {opp.companyName}
+                        {opp.brandName ? ` • ${opp.brandName}` : ""}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-right">
+                      <div className="flex flex-col items-end">
+                        <span className="text-sm font-semibold">
+                          {formatMicros(opp.amountMicros)}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] ${stageBadgeClass(stageMap.get(opp.stage)?.color)}`}
+                        >
+                          {stageMap.get(opp.stage)?.label ?? opp.stage.replace("_", " ")}
+                        </Badge>
+                      </div>
+                    </div>
+                  </Link>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Right: Recent Companies */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Recent Accounts</CardTitle>
+              <CardDescription>Managed companies and client entities</CardDescription>
+            </div>
+            <Button size="sm" variant="ghost" render={<Link href="/companies" />}>
+              View All <ArrowRightIcon className="ml-1 size-3" />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="divide-y">
+              {recentCompanies.length === 0 ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  No companies yet.
+                </p>
+              ) : (
+                recentCompanies.map((c) => (
+                  <Link
+                    key={c.id}
+                    href={`/companies/${c.id}`}
+                    className="flex items-center justify-between py-3 transition-colors hover:bg-muted/50"
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-sm font-medium hover:underline">
+                        {c.name}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {c.domainName || "No domain"} • {c.industry || "General"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Added {formatDate(c.createdAt)}
+                    </div>
+                  </Link>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}

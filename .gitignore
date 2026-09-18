@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.local
+.DS_Store
+dist/
+build/
+.next/
+.env.production
+*.tsbuildinfo
+.open-next/
+.wrangler/
+.dev.vars
+
+# Local / utility scripts
+scripts/
+src/db/scripts/
