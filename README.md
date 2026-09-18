@@ -62,6 +62,8 @@ graph TD
     Domain --> Database
 ```
 
+> 💡 **Data Modeling Inspiration**: The multi-schema PostgreSQL architecture and polymorphic junction patterns in this repository draw direct architectural inspiration from **[Twenty CRM](https://twenty.com)** (`twentyhq/twenty`). For a comprehensive technical analysis of Twenty's metadata engine, see [`docs/twentycrm-database-architecture.md`](./docs/twentycrm-database-architecture.md).
+
 ---
 
 ## ⚡ Features
@@ -321,7 +323,7 @@ This project stands on the shoulders of incredible open-source projects, develop
 - **[Linear](https://linear.app)** — The gold standard for high-density, keyboard-driven UIs, fluid stage progression tracks, and clean micro-interactions.
 - **[Attio](https://attio.com)** — Redefining modern CRM data architecture, fast inline cell editing, relationship data modeling, and slide-over deal inspection.
 - **[Stripe](https://stripe.com)** — The benchmark for executive-grade dashboard clarity, predictable typography, and developer experience.
-- **[Twenty](https://twenty.com)** — Trailblazers in open-source CRM architecture, modular schema design, and developer extensibility.
+- **[Twenty CRM](https://twenty.com)** ([twentyhq/twenty](https://github.com/twentyhq/twenty)) — Trailblazers in modern open-source CRM architecture. Twenty's pioneering metadata-driven schema design, standard and custom object isolation, and polymorphic junction tables directly shaped our 5-schema PostgreSQL architecture (detailed in [`docs/twentycrm-database-architecture.md`](./docs/twentycrm-database-architecture.md)).
 
 ### 📦 Key Open-Source Libraries
 - **[Next.js](https://nextjs.org)** & **[React](https://react.dev)** — The foundation for server-rendered, dynamic full-stack applications.
