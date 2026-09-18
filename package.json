@@ -10,7 +10,7 @@
     "build:worker": "opennextjs-cloudflare build",
     "deploy:worker": "opennextjs-cloudflare build && wrangler deploy",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "mcp": "tsx src/mcp/stdio.ts",
     "db:init": "tsx src/db/init.ts",
     "db:generate": "drizzle-kit generate",
@@ -53,12 +53,15 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
     "@opennextjs/cloudflare": "^1.20.6",
     "@types/node": "^22.0.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "dotenv": "^16.4.7",
     "drizzle-kit": "^0.30.4",
+    "eslint": "^9.19.0",
+    "eslint-config-next": "^16.3.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.0",
     "wrangler": "^4.132.0"

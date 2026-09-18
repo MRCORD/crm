@@ -71,17 +71,12 @@ export function RoutingTable({
 
   const totalItems = sortedRules.length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
-
-  React.useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(1)
-    }
-  }, [totalPages, currentPage])
+  const safePage = Math.min(currentPage, totalPages)
 
   const paginatedRules = React.useMemo(() => {
-    const start = (currentPage - 1) * pageSize
+    const start = (safePage - 1) * pageSize
     return sortedRules.slice(start, start + pageSize)
-  }, [sortedRules, currentPage, pageSize])
+  }, [sortedRules, safePage, pageSize])
 
   return (
     <div className="w-full min-w-full rounded-xl border bg-card shadow-2xs overflow-hidden">
@@ -201,7 +196,7 @@ export function RoutingTable({
 
       <TablePagination
         totalItems={totalItems}
-        currentPage={currentPage}
+        currentPage={safePage}
         pageSize={pageSize}
         onPageChange={setCurrentPage}
         onPageSizeChange={setPageSize}

@@ -74,17 +74,15 @@ export function BrandsTable({
 
   const totalItems = sortedBrands.length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
-
-  React.useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(1)
-    }
-  }, [totalPages, currentPage])
+  // Clamp during render instead of syncing via an effect: if a filter/page-size
+  // change shrinks totalPages below the stored page, cap it here so the slice
+  // and displayed page number are never inconsistent for a frame.
+  const safePage = Math.min(currentPage, totalPages)
 
   const paginatedBrands = React.useMemo(() => {
-    const start = (currentPage - 1) * pageSize
+    const start = (safePage - 1) * pageSize
     return sortedBrands.slice(start, start + pageSize)
-  }, [sortedBrands, currentPage, pageSize])
+  }, [sortedBrands, safePage, pageSize])
 
   return (
     <div className="w-full min-w-full rounded-xl border bg-card shadow-2xs overflow-hidden">
@@ -221,7 +219,7 @@ export function BrandsTable({
 
       <TablePagination
         totalItems={totalItems}
-        currentPage={currentPage}
+        currentPage={safePage}
         pageSize={pageSize}
         onPageChange={setCurrentPage}
         onPageSizeChange={setPageSize}

@@ -1,0 +1,13 @@
+node_modules
+.next
+.open-next
+.wrangler
+.git
+.env
+.env.local
+.env.production
+*.log
+Dockerfile
+.dockerignore
+src/db/scripts
+scripts

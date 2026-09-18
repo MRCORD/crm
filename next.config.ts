@@ -2,6 +2,12 @@ import type { NextConfig } from 'next';
 import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare';
 
 const nextConfig: NextConfig = {
+  // Standalone output is only for the Docker/self-hosted Node.js path
+  // (see Dockerfile). The Cloudflare Workers build (`@opennextjs/cloudflare`)
+  // reads directly from the default `.next` build output and must NOT use
+  // standalone mode, so this is opt-in via BUILD_STANDALONE=1.
+  output: process.env.BUILD_STANDALONE ? 'standalone' : undefined,
+
   // Allows a reverse-proxied local dev domain (e.g. a Cloudflare Tunnel used
   // to test Clerk/webhooks against a real HTTPS hostname) to reach this dev
   // server, including the HMR WebSocket. Without this, Next.js rejects the

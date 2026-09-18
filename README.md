@@ -142,10 +142,15 @@ CLERK_WEBHOOK_SECRET=whsec_...
 
 ### 3. Run Database Migrations
 
+No PostgreSQL instance yet? Spin one up locally in one command:
+
+```bash
+docker compose up -d
+```
+
 Apply the versioned Drizzle migrations to scaffold the 5 logical schemas and tables:
 
 ```bash
-# Push SQL migrations to your database:
 pnpm db:migrate
 ```
 
@@ -332,11 +337,23 @@ Connect your GitHub repo directly to Cloudflare for auto-deploy on every push:
 
 ### 🖥️ Docker / Self-Hosted Node.js
 
+A production `Dockerfile` is included for Railway, Coolify, Render, Fly.io, or any VPS:
+
+```bash
+docker build -t agentic-crm .
+docker run -p 3000:3000 --env-file .env agentic-crm
+```
+
+Or without Docker, run the standard Next.js Node.js server directly:
+
 ```bash
 pnpm build && pnpm start
 ```
 
+For a one-command local PostgreSQL during development, see [`docker-compose.yml`](./docker-compose.yml): `docker compose up -d`.
+
 ---
+
 ## 🌟 Acknowledgements & Inspirations
 
 This project stands on the shoulders of incredible open-source projects, developer tools, and pioneering software platforms:

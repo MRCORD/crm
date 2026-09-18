@@ -275,10 +275,23 @@ export function KanbanBoard({
   const [selectedOpportunity, setSelectedOpportunity] =
     React.useState<KanbanOpportunity | null>(null)
 
-  // Keep state updated if server revalidates props
-  React.useEffect(() => {
+  // Resync local `opportunities` when the server-provided prop changes
+  // (e.g. after router revalidation), using React's documented "adjust
+  // state during render" pattern instead of an effect — `opportunities`
+  // also carries local optimistic drag-and-drop mutations, so it can't be
+  // a plain derived `useMemo`.
+  const [prevInitialOpportunities, setPrevInitialOpportunities] =
+    React.useState(initialOpportunities)
+  if (initialOpportunities !== prevInitialOpportunities) {
+    setPrevInitialOpportunities(initialOpportunities)
     setOpportunities(initialOpportunities)
-  }, [initialOpportunities])
+  }
+
+  // Snapshot "now" once via a useState lazy initializer — React guarantees
+  // this function runs exactly once (first render), which is the blessed
+  // escape hatch for one-time impure values, unlike calling Date.now()
+  // directly in the render/useMemo body (which must be pure and repeatable).
+  const [now] = React.useState(() => Date.now())
 
   // Filtered dataset based on search & quick filters
   const filteredOpportunities = React.useMemo(() => {
@@ -300,7 +313,6 @@ export function KanbanBoard({
       } else if (filterPreset === "closing-soon") {
         if (!opp.closeDate) return false
         const close = new Date(opp.closeDate).getTime()
-        const now = Date.now()
         const thirtyDays = 30 * 24 * 60 * 60 * 1000
         if (close < now || close > now + thirtyDays) return false
       } else if (filterPreset === "at-risk") {
@@ -310,16 +322,25 @@ export function KanbanBoard({
 
       return true
     })
-  }, [opportunities, searchQuery, filterPreset])
+  }, [opportunities, searchQuery, filterPreset, now])
 
-  // Columns derived from filtered dataset
+  // Columns derived from filtered dataset. `columns` also carries local
+  // drag-and-drop mutations (see handleValueCommit/handleManualStageChange
+  // below), so it can't be a plain useMemo — resync it during render when
+  // the upstream filtered set or stage list changes, using the same
+  // prevProp-comparison pattern as `opportunities` above.
   const [columns, setColumns] = React.useState<
     Record<string, KanbanOpportunity[]>
   >(() => buildColumnsMap(filteredOpportunities, stages))
 
-  React.useEffect(() => {
+  const [prevFilteredOpportunities, setPrevFilteredOpportunities] =
+    React.useState(filteredOpportunities)
+  const [prevStages, setPrevStages] = React.useState(stages)
+  if (filteredOpportunities !== prevFilteredOpportunities || stages !== prevStages) {
+    setPrevFilteredOpportunities(filteredOpportunities)
+    setPrevStages(stages)
     setColumns(buildColumnsMap(filteredOpportunities, stages))
-  }, [filteredOpportunities, stages])
+  }
 
   // Handle Drag & Drop commit (persists to backend with optimistic UI & rollback)
   const handleValueCommit = (

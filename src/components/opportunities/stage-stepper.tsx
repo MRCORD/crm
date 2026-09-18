@@ -25,9 +25,14 @@ export function StageStepper({
   const [stage, setStage] = React.useState(currentStage)
   const [loadingStage, setLoadingStage] = React.useState<string | null>(null)
 
-  React.useEffect(() => {
+  // Resync local optimistic `stage` when the server-provided `currentStage`
+  // prop changes (e.g. after router revalidation), using React's documented
+  // "adjust state during render" pattern instead of an effect.
+  const [prevCurrentStage, setPrevCurrentStage] = React.useState(currentStage)
+  if (currentStage !== prevCurrentStage) {
+    setPrevCurrentStage(currentStage)
     setStage(currentStage)
-  }, [currentStage])
+  }
 
   async function handleSelectStage(newStage: OpportunityStage) {
     if (newStage === stage) return

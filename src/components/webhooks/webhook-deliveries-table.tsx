@@ -65,17 +65,12 @@ export function WebhookDeliveriesTable({
 
   const totalItems = sortedDeliveries.length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
-
-  React.useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(1)
-    }
-  }, [totalPages, currentPage])
+  const safePage = Math.min(currentPage, totalPages)
 
   const paginatedDeliveries = React.useMemo(() => {
-    const start = (currentPage - 1) * pageSize
+    const start = (safePage - 1) * pageSize
     return sortedDeliveries.slice(start, start + pageSize)
-  }, [sortedDeliveries, currentPage, pageSize])
+  }, [sortedDeliveries, safePage, pageSize])
 
   return (
     <div className="w-full min-w-full rounded-xl border bg-card shadow-2xs overflow-hidden">
@@ -171,7 +166,7 @@ export function WebhookDeliveriesTable({
 
       <TablePagination
         totalItems={totalItems}
-        currentPage={currentPage}
+        currentPage={safePage}
         pageSize={pageSize}
         onPageChange={setCurrentPage}
         onPageSizeChange={setPageSize}

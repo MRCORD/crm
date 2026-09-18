@@ -110,24 +110,14 @@ Ideal for small teams and rapid iteration:
 
 ### Option B: Railway / Coolify / VPS (Docker Container)
 Ideal for teams that want a single persistent server:
-* Run the provided `Dockerfile` on Railway, Coolify, Render, or any $5/mo VPS.
-* Exposes the web UI on port `3000` and the remote MCP SSE endpoint at `/api/mcp/sse`.
-
-```dockerfile
-# Production Dockerfile
-FROM node:22-alpine AS base
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
-
-COPY . .
-RUN pnpm build
-
-EXPOSE 3000
-CMD ["pnpm", "start"]
-```
+* Run the multi-stage [`Dockerfile`](../Dockerfile) at the repo root on Railway, Coolify, Render, Fly.io, or any $5/mo VPS.
+* Exposes the web UI on port `3000`.
+* Build and run locally to verify:
+  ```bash
+  docker build -t agentic-crm .
+  docker run -p 3000:3000 --env-file .env agentic-crm
+  ```
+* See [`DEPLOYING.md`](../DEPLOYING.md) for the full provider setup (PostgreSQL, Clerk) shared across all deployment targets.
 
 ---
 

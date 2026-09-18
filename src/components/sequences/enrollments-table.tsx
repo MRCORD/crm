@@ -70,17 +70,12 @@ export function EnrollmentsTable({
 
   const totalItems = sortedEnrollments.length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
-
-  React.useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(1)
-    }
-  }, [totalPages, currentPage])
+  const safePage = Math.min(currentPage, totalPages)
 
   const paginatedEnrollments = React.useMemo(() => {
-    const start = (currentPage - 1) * pageSize
+    const start = (safePage - 1) * pageSize
     return sortedEnrollments.slice(start, start + pageSize)
-  }, [sortedEnrollments, currentPage, pageSize])
+  }, [sortedEnrollments, safePage, pageSize])
 
   return (
     <div className="w-full min-w-full rounded-xl border bg-card shadow-2xs overflow-hidden">
@@ -186,7 +181,7 @@ export function EnrollmentsTable({
 
       <TablePagination
         totalItems={totalItems}
-        currentPage={currentPage}
+        currentPage={safePage}
         pageSize={pageSize}
         onPageChange={setCurrentPage}
         onPageSizeChange={setPageSize}

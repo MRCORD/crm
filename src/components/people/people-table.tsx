@@ -78,17 +78,12 @@ export function PeopleTable({
 
   const totalItems = sortedPeople.length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
-
-  React.useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(1)
-    }
-  }, [totalPages, currentPage])
+  const safePage = Math.min(currentPage, totalPages)
 
   const paginatedPeople = React.useMemo(() => {
-    const start = (currentPage - 1) * pageSize
+    const start = (safePage - 1) * pageSize
     return sortedPeople.slice(start, start + pageSize)
-  }, [sortedPeople, currentPage, pageSize])
+  }, [sortedPeople, safePage, pageSize])
 
   return (
     <div className="w-full min-w-full rounded-xl border bg-card shadow-2xs overflow-hidden">
@@ -231,7 +226,7 @@ export function PeopleTable({
 
       <TablePagination
         totalItems={totalItems}
-        currentPage={currentPage}
+        currentPage={safePage}
         pageSize={pageSize}
         onPageChange={setCurrentPage}
         onPageSizeChange={setPageSize}

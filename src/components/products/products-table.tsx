@@ -79,17 +79,12 @@ export function ProductsTable({
 
   const totalItems = sortedProducts.length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
-
-  React.useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(1)
-    }
-  }, [totalPages, currentPage])
+  const safePage = Math.min(currentPage, totalPages)
 
   const paginatedProducts = React.useMemo(() => {
-    const start = (currentPage - 1) * pageSize
+    const start = (safePage - 1) * pageSize
     return sortedProducts.slice(start, start + pageSize)
-  }, [sortedProducts, currentPage, pageSize])
+  }, [sortedProducts, safePage, pageSize])
 
   return (
     <div className="w-full min-w-full rounded-xl border bg-card shadow-2xs overflow-hidden">
@@ -235,7 +230,7 @@ export function ProductsTable({
 
       <TablePagination
         totalItems={totalItems}
-        currentPage={currentPage}
+        currentPage={safePage}
         pageSize={pageSize}
         onPageChange={setCurrentPage}
         onPageSizeChange={setPageSize}

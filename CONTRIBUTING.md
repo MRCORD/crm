@@ -9,17 +9,19 @@ A **self-hosted, single-tenant CRM boilerplate** built on Polygres (PostgreSQL),
 - **Boring stack** — no exotic runtimes; TypeScript + PostgreSQL + Node.js
 - **MCP-native** — every capability exposed as an MCP tool; agents are first-class users
 - **Additive migrations** — `db:generate` + `db:migrate` only; never `db:push` on live data
-- **Each feature has a test** — E2E scripts in `src/db/scripts/` verified against a live Polygres DB
+- **Each feature is verified end-to-end** against a live PostgreSQL database before merge
 
 ## Development Setup
 
 ```bash
 pnpm install
 cp .env.example .env
-# Fill in DATABASE_URL pointing at a local or dev Polygres instance
+# Fill in DATABASE_URL. For a quick local Postgres instead of a hosted one:
+docker compose up -d
 pnpm db:migrate
 pnpm db:seed
-pnpm mcp          # launches the MCP server on stdio
+pnpm dev            # web app on http://localhost:3000
+pnpm mcp            # launches the MCP server on stdio
 ```
 
 ## Workflow
@@ -28,14 +30,21 @@ pnpm mcp          # launches the MCP server on stdio
 2. **Schema changes** → edit `src/db/schema/*.ts`, run `pnpm db:generate`, inspect the generated SQL, commit the migration file alongside the schema change.
 3. **New MCP tool** → add schema in `crmToolSchemas`, handler in `crmToolHandlers`, register in `server.ts` with `executeWithReceipt`. Follow the existing numbered comment convention.
 4. **New lib module** → `src/lib/<module>.ts`. Avoid side effects at module load time.
-5. **Write a test script** → `src/db/scripts/test-<feature>.ts`. Run it against your dev DB to verify end-to-end. Tests should clean up all inserted records.
-6. **`npx tsc --noEmit`** must pass before opening a PR.
+5. **Verify end-to-end** → write a throwaway verification script and run it against your dev database. `src/db/scripts/` is gitignored (personal utility scripts, never committed) — use it as scratch space, or run inline via `pnpm tsx -e '...'`. Clean up any inserted records afterward. Paste the command and its output in your PR description as evidence (see the PR template).
+6. Before opening a PR, all of the following must pass locally (CI runs the same checks on every PR):
+   ```bash
+   npx tsc --noEmit
+   pnpm lint
+   pnpm build
+   ```
 
 ## PR Checklist
 
-- [ ] `tsc --noEmit` passes clean (0 errors)
-- [ ] Migration file generated and committed alongside schema change
-- [ ] E2E test script runs successfully against a real PostgreSQL instance
+See `.github/PULL_REQUEST_TEMPLATE.md` (auto-populated when you open a PR). In short:
+
+- [ ] `tsc --noEmit`, `pnpm lint`, and `pnpm build` all pass clean
+- [ ] Migration file generated and committed alongside any schema change
+- [ ] End-to-end verification run against a real PostgreSQL instance, with command/output pasted in the PR
 - [ ] No hardcoded credentials, personal paths, or real connection strings
 - [ ] MCP server still boots: `npx tsx -e 'import { createCrmMcpServer } from "./src/mcp/server.ts"; createCrmMcpServer(); console.log("OK")'`
 
@@ -51,7 +60,7 @@ pnpm db:migrate           → apply to dev DB
 src/lib/<primitive>.ts    → core logic (no MCP dependencies)
 src/mcp/tools.ts          → add Zod schemas + handlers
 src/mcp/server.ts         → register with server.tool()
-src/db/scripts/test-*.ts  → E2E verification script
+(scratch script)          → E2E verification, not committed
 ```
 
 ## What We Won't Merge
@@ -60,3 +69,4 @@ src/db/scripts/test-*.ts  → E2E verification script
 - `db:push` references anywhere
 - Raw SQL execution exposed via MCP tools (SQL injection risk)
 - Dependencies that require native compilation without fallback
+- Committed files under `src/db/scripts/` or `scripts/` — these are gitignored on purpose

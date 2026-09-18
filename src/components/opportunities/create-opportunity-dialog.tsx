@@ -43,11 +43,19 @@ export function CreateOpportunityDialog({
   const [stage, setStage] = React.useState<OpportunityStage>(stages[0]?.key ?? "DISCOVERY")
   const router = useRouter()
 
-  React.useEffect(() => {
+  // Reset brandId to defaultBrandId each time the dialog transitions to
+  // open, using React's documented "adjust state during render" pattern
+  // (comparing against a ref-like previous-value state) instead of an
+  // effect, since this is deriving state from a prop change, not
+  // synchronizing with an external system.
+  const [prevOpen, setPrevOpen] = React.useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
     if (open && defaultBrandId) {
       setBrandId(defaultBrandId)
     }
-  }, [open, defaultBrandId])
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!companyId) {

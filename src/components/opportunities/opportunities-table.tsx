@@ -133,18 +133,12 @@ export function OpportunitiesTable({
   // Pagination calculations
   const totalItems = sortedOpportunities.length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
-
-  // Adjust page if out of bounds
-  React.useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(1)
-    }
-  }, [totalPages, currentPage])
+  const safePage = Math.min(currentPage, totalPages)
 
   const paginatedOpportunities = React.useMemo(() => {
-    const start = (currentPage - 1) * pageSize
+    const start = (safePage - 1) * pageSize
     return sortedOpportunities.slice(start, start + pageSize)
-  }, [sortedOpportunities, currentPage, pageSize])
+  }, [sortedOpportunities, safePage, pageSize])
 
   const isCurrentPageAllSelected =
     paginatedOpportunities.length > 0 &&
@@ -193,8 +187,8 @@ export function OpportunitiesTable({
     return Math.round(sum / withProb.length)
   }, [sortedOpportunities])
 
-  const startRange = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1
-  const endRange = Math.min(currentPage * pageSize, totalItems)
+  const startRange = totalItems === 0 ? 0 : (safePage - 1) * pageSize + 1
+  const endRange = Math.min(safePage * pageSize, totalItems)
 
   return (
     <div className="w-full min-w-full rounded-xl border bg-card shadow-2xs overflow-hidden">
@@ -526,7 +520,7 @@ export function OpportunitiesTable({
           <Button
             variant="outline"
             size="sm"
-            disabled={currentPage <= 1}
+            disabled={safePage <= 1}
             onClick={() => setCurrentPage(1)}
             className="h-7 px-2 text-xs font-medium"
             title="First Page"
@@ -537,7 +531,7 @@ export function OpportunitiesTable({
           <Button
             variant="outline"
             size="sm"
-            disabled={currentPage <= 1}
+            disabled={safePage <= 1}
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             className="h-7 px-2.5 text-xs font-medium gap-1"
           >
@@ -547,14 +541,14 @@ export function OpportunitiesTable({
 
           <div className="flex items-center px-2 text-xs font-medium text-foreground tabular-nums">
             <span>
-              {currentPage} / {totalPages}
+              {safePage} / {totalPages}
             </span>
           </div>
 
           <Button
             variant="outline"
             size="sm"
-            disabled={currentPage >= totalPages}
+            disabled={safePage >= totalPages}
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             className="h-7 px-2.5 text-xs font-medium gap-1"
           >
@@ -565,7 +559,7 @@ export function OpportunitiesTable({
           <Button
             variant="outline"
             size="sm"
-            disabled={currentPage >= totalPages}
+            disabled={safePage >= totalPages}
             onClick={() => setCurrentPage(totalPages)}
             className="h-7 px-2 text-xs font-medium"
             title="Last Page"

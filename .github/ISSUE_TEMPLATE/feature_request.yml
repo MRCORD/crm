@@ -1,0 +1,40 @@
+name: Feature Request
+description: Propose a new feature, MCP tool, or CRM primitive
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: What's the use case? Who needs this?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How should this work? Include API shape, MCP tool schema, or UI sketch if relevant.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Web UI (Next.js)
+        - MCP tools / agent layer
+        - Database schema
+        - Deployment / infra
+        - Documentation
+        - Other
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
