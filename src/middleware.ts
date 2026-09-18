@@ -7,6 +7,8 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhooks/clerk',    // Clerk user sync webhook (must be public)
   '/api/webhooks/(.*)',     // Other inbound webhooks (Recall.ai, PostHog)
   '/api/health',
+  '/icon',                  // Generated favicon (next/og route, no file extension)
+  '/opengraph-image',       // Generated social preview image (next/og route)
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
