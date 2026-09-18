@@ -13,6 +13,8 @@ Powered by **PostgreSQL**, **Next.js 16**, **Tailwind CSS v4**, and the **Model 
 [![MCP](https://img.shields.io/badge/MCP-Native-purple?style=flat&logo=anthropic)](https://modelcontextprotocol.io/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/MRCORD/crm)
+
 [Architecture](#-architecture) • [Features](#-features) • [Quickstart](#-quickstart) • [Connect AI Agents](#-connecting-ai-agents-via-mcp) • [MCP Tools](#-mcp-tools-catalog) • [Deployment](#-deployment) • [Inspirations](#-acknowledgements--inspirations)
 
 </div>
@@ -287,25 +289,51 @@ The database is partitioned into **5 clean logical PostgreSQL schemas**:
 
 ## 🚢 Deployment
 
-### Cloudflare Workers (Recommended)
-This codebase is compiled for edge execution via `@opennextjs/cloudflare`:
+### ⚡ One-Click Deploy (Cloudflare Workers)
 
-1. Configure your Hyperdrive database pooler in `wrangler.jsonc`.
-2. Push your production environment variables:
-   ```bash
-   pnpm dlx wrangler secret bulk .env.production
-   ```
-3. Build and deploy:
-   ```bash
-   pnpm deploy:worker
-   ```
+Click the button below to deploy Agentic CRM to your Cloudflare account in minutes:
 
-### Docker / Self-Hosted Node.js
-Build and start a standard standalone Next.js server:
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/MRCORD/crm)
+
+> **Before clicking**: [Create a Cloudflare Hyperdrive config](https://developers.cloudflare.com/hyperdrive/) pointing to your PostgreSQL database, and note the Config ID. You'll need it after deploying.
+
+**After clicking the button**, the deploy flow will:
+1. Fork this repository into your GitHub account.
+2. Trigger the GitHub Actions workflow (`.github/workflows/deploy.yml`) to build and deploy.
+3. Prompt you to add GitHub secrets: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+
+**Then complete setup** by adding secrets to your Cloudflare Worker:
+```bash
+wrangler secret put DATABASE_URL
+wrangler secret put DIRECT_URL
+wrangler secret put NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+wrangler secret put CLERK_SECRET_KEY
+wrangler secret put CLERK_WEBHOOK_SECRET
+```
+
+And update `wrangler.jsonc` with your actual Hyperdrive Config ID:
+```jsonc
+{
+  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "YOUR_HYPERDRIVE_CONFIG_ID" }]
+}
+```
+
+**Full deployment guide with screenshots**: → [DEPLOYING.md](./DEPLOYING.md)
+
+### 🔁 Cloudflare Workers Builds (CI/CD)
+
+Connect your GitHub repo directly to Cloudflare for auto-deploy on every push:
+
+1. Go to **Cloudflare Dashboard → Workers & Pages → Create → Workers Builds**.
+2. Connect GitHub and select your forked `crm` repository.
+3. Set Build command: `npx @opennextjs/cloudflare build`
+4. Set Deploy command: `npx @opennextjs/cloudflare deploy`
+5. Add environment variables and deploy.
+
+### 🖥️ Docker / Self-Hosted Node.js
 
 ```bash
-pnpm build
-pnpm start
+pnpm build && pnpm start
 ```
 
 ---
