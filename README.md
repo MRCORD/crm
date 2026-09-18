@@ -13,7 +13,7 @@ Powered by **PostgreSQL**, **Next.js 16**, **Tailwind CSS v4**, and the **Model 
 [![MCP](https://img.shields.io/badge/MCP-Native-purple?style=flat&logo=anthropic)](https://modelcontextprotocol.io/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 
-[Architecture](#-architecture) • [Features](#-features) • [Quickstart](#-quickstart) • [Connect AI Agents](#-connecting-ai-agents-via-mcp) • [MCP Tools](#-mcp-tools-catalog) • [Deployment](#-deployment)
+[Architecture](#-architecture) • [Features](#-features) • [Quickstart](#-quickstart) • [Connect AI Agents](#-connecting-ai-agents-via-mcp) • [MCP Tools](#-mcp-tools-catalog) • [Deployment](#-deployment) • [Inspirations](#-acknowledgements--inspirations)
 
 </div>
 
@@ -305,6 +305,34 @@ Build and start a standard standalone Next.js server:
 pnpm build
 pnpm start
 ```
+
+---
+## 🌟 Acknowledgements & Inspirations
+
+This project stands on the shoulders of incredible open-source projects, developer tools, and pioneering software platforms:
+
+### 🏗️ Infrastructure & Foundation
+- **[Polygres](https://polygres.com)** — Autonomous PostgreSQL database with relational knowledge graph edges and semantic vector embeddings.
+- **[Cloudflare](https://cloudflare.com)** — Serverless edge execution with Cloudflare Workers, `@opennextjs/cloudflare`, Hyperdrive connection pooling, and Cloudflare Tunnels.
+- **[Clerk](https://clerk.com)** — User authentication, JWT sessions, multi-tenant organizations, and webhook sync.
+- **[Anthropic](https://anthropic.com)** — Creators of the [Model Context Protocol (MCP)](https://modelcontextprotocol.io), the open standard connecting AI agents to tools and databases.
+
+### 🎨 Design & Product Inspirations
+- **[Linear](https://linear.app)** — The gold standard for high-density, keyboard-driven UIs, fluid stage progression tracks, and clean micro-interactions.
+- **[Attio](https://attio.com)** — Redefining modern CRM data architecture, fast inline cell editing, relationship data modeling, and slide-over deal inspection.
+- **[Stripe](https://stripe.com)** — The benchmark for executive-grade dashboard clarity, predictable typography, and developer experience.
+- **[Twenty](https://twenty.com)** — Trailblazers in open-source CRM architecture, modular schema design, and developer extensibility.
+
+### 📦 Key Open-Source Libraries
+- **[Next.js](https://nextjs.org)** & **[React](https://react.dev)** — The foundation for server-rendered, dynamic full-stack applications.
+- **[Tailwind CSS v4](https://tailwindcss.com)** — Modern utility-first styling with high-performance CSS color and layout engines.
+- **[Base UI](https://base-ui.com)** & **[shadcn/ui](https://ui.shadcn.com)** — Accessible, unstyled component primitives with beautiful design system tokens.
+- **[ReUI](https://reui.io)** — Fluid drag-and-drop Kanban component primitives.
+- **[@dnd-kit](https://dndkit.com)** by Claudéric Demers — Accessible, high-performance drag-and-drop engine for React.
+- **[Drizzle ORM](https://orm.drizzle.team)** — Type-safe, SQL-like TypeScript ORM for robust migrations.
+- **[Sonner](https://sonner.emilkowal.ski)** by Emil Kowalski — The most delightful toast notification library for React.
+- **[Lucide Icons](https://lucide.dev)** — Clean, consistent, and versatile icon library.
+- **[Recharts](https://recharts.org)** — Composable charting library for conversion funnels and pipeline analytics.
 
 ---
 
